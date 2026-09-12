@@ -77,6 +77,13 @@ export interface UsersCreateRequest {
   password: string;
   isActive: boolean;
 }
+export interface UsersUpdateRequest {
+  id: number;
+  roleId: number;
+  email: string;
+  displayName: string;
+  isActive: boolean;
+}
 
 export interface AttendanceCreateRequest {
   operatorId: number;
@@ -140,4 +147,12 @@ export interface AssignMenusRequest {
 }
 export interface AssignWidgetsRequest {
   widgetIds: number[];
+}
+export interface RoleCreateRequest {
+  roleName: string;
+  description: string;
+  isActive: boolean;
+}
+export interface RoleUpdateRequest extends RoleCreateRequest {
+  id: number;
 }

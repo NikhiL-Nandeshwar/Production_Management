@@ -149,11 +149,13 @@ export async function mutation(
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   url: string,
   body?: unknown,
+  params?: Record<string, unknown>,
 ) {
   const response = await transport.request<ApiResponse<unknown>>({
     method,
     url,
     data: body,
+    params,
   });
   const data = validateEnvelope(response.data);
   return {

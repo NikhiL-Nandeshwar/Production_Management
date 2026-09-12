@@ -1,5 +1,7 @@
 import { resources } from '@/config/resources';
 import { ResourcePage } from '@/features/resource-page';
+import { RolePage } from '@/features/role-page';
+import { UserPage } from '@/features/user-page';
 import { UnavailableState } from '@/components/common/states';
 export default async function ModulePage({
   params,
@@ -13,5 +15,7 @@ export default async function ModulePage({
     return (
       <UnavailableState description="This assigned route does not yet have a documented module configuration." />
     );
+  if (resource.key === 'roles') return <RolePage />;
+  if (resource.key === 'users') return <UserPage />;
   return <ResourcePage key={resource.key} resource={resource} />;
 }

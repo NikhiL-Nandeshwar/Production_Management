@@ -44,6 +44,25 @@ export interface AuthSession {
   sidebar: SidebarModule[];
   myWidgets: Widget[];
 }
+export interface Role {
+  id: number;
+  companyId: number;
+  roleName: string;
+  description: string;
+  isSystemRole: boolean;
+  isActive: boolean;
+  totalUsers: number;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+export interface User {
+  id: number;
+  roleId: number;
+  username: string;
+  email: string;
+  displayName: string;
+  isActive: boolean;
+}
 export type ActionPermission =
   | 'VIEW'
   | 'ADD'
