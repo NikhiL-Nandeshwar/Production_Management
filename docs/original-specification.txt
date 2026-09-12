@@ -1,0 +1,2251 @@
+You are a Senior Frontend Architect, UI/UX Engineer, and Production-Grade Next.js Developer.
+
+I already have my BACKEND API fully developed, tested, and HOSTED.
+
+Your job is to build the COMPLETE FRONTEND APPLICATION END-TO-END using my existing backend APIs.
+
+DO NOT rebuild the backend.
+DO NOT create fake backend APIs.
+DO NOT replace my API architecture.
+DO NOT invent API endpoints when an endpoint is not documented.
+DO NOT change backend request/response contracts.
+
+You must consume my existing hosted API exactly as documented below.
+
+========================================================
+PROJECT
+========================================================
+
+Product:
+PRODVEX
+
+Domain:
+Manufacturing / Machine Shop / Production Management SaaS
+
+Architecture:
+Multi-tenant SaaS
+
+Frontend:
+Next.js 14+ App Router
+TypeScript
+Tailwind CSS
+shadcn/ui
+React Hook Form
+Zod
+Axios
+Zustand
+date-fns
+Lucide React
+
+Backend:
+Already completed and hosted.
+
+API BASE URL:
+
+https://prodvex.runasp.net/api/v1/
+
+Environment variable:
+
+NEXT_PUBLIC_API_BASE_URL=https://prodvex.runasp.net/api/v1
+
+========================================================
+IMPORTANT RULE
+========================================================
+
+Treat the backend API as the SINGLE SOURCE OF TRUTH.
+
+The frontend must adapt to the existing backend.
+
+Never assume an API response shape if it is not documented.
+
+Never silently change API field names.
+
+Never send companyId for normal company users if the backend derives CompanyId from JWT.
+
+SuperAdmin may use companyId where the backend supports it.
+
+========================================================
+GLOBAL API FORMAT
+========================================================
+
+Successful response:
+
+{
+  "success": true,
+  "message": "string",
+  "statusCode": 200,
+  "data": {},
+  "errors": null,
+  "timestamp": "2026-09-11T12:00:00Z"
+}
+
+Error response:
+
+{
+  "success": false,
+  "message": "Error message",
+  "statusCode": 400,
+  "data": null,
+  "errors": ["field error 1"]
+}
+
+Frontend requirements:
+
+- Always inspect success
+- Use data as actual payload
+- Show message using Sonner toast
+- Show field validation errors properly
+- Handle loading states
+- Handle empty states
+- Handle API errors
+- Handle network errors
+- Handle 401 globally
+- On 401 clear authentication and redirect to /login
+- Never expose sensitive information
+- Never hardcode permissions into individual pages unnecessarily
+
+========================================================
+AUTHENTICATION
+========================================================
+
+Login:
+
+POST /Auth/login
+
+Request:
+
+{
+  "username": "admin_acme",
+  "password": "Admin@123"
+}
+
+Login response contains:
+
+- userId
+- username
+- displayName
+- email
+- companyId
+- companyName
+- roleId
+- roleName
+- isSuperAdmin
+- accessToken
+- refreshToken
+- accessTokenExpiresAt
+- refreshTokenExpiresAt
+- sidebar
+- myWidgets
+
+After successful login store:
+
+- accessToken
+- refreshToken
+- user profile
+- company information
+- role information
+- sidebar
+- widgets
+
+Use Zustand for runtime state.
+
+Persist required authentication state safely.
+
+Create:
+
+- AuthProvider/store
+- auth hooks
+- protected route handling
+- API client
+- Axios interceptors
+- token handling
+- 401 handling
+- logout handling
+- refresh-token handling
+
+Logout:
+
+POST /Auth/logout
+
+Body:
+
+{
+  "refreshToken": "..."
+}
+
+Refresh:
+
+POST /Auth/refresh
+
+Body:
+
+{
+  "refreshToken": "..."
+}
+
+Implement automatic token refresh if appropriate.
+
+Avoid infinite refresh loops.
+
+========================================================
+DYNAMIC SIDEBAR
+========================================================
+
+THIS IS VERY IMPORTANT.
+
+The sidebar must NOT be hardcoded.
+
+The backend login API provides:
+
+sidebar
+
+Example structure:
+
+type SidebarMenu = {
+  menuId: number;
+  menuCode: string;
+  displayName: string;
+  parentMenuId?: number | null;
+  icon?: string;
+  route?: string | null;
+  sortOrder: number;
+  children: SidebarMenu[];
+};
+
+type SidebarModule = {
+  moduleId: number;
+  moduleCode: string;
+  moduleName: string;
+  icon?: string;
+  sortOrder: number;
+  menus: SidebarMenu[];
+};
+
+Build the sidebar dynamically from this API response.
+
+Requirements:
+
+- module grouping
+- nested menus
+- child menus
+- active route
+- route navigation
+- sortOrder
+- API-provided displayName
+- API-provided icon where possible
+- collapsible sidebar
+- persistent collapsed state
+- mobile Sheet sidebar
+- active menu highlighting
+- automatic parent expansion
+- no hardcoded menu assumptions
+
+If route is null:
+treat it as a parent/group.
+
+Use lucide-react icons.
+
+Create a reusable icon resolver.
+
+========================================================
+DYNAMIC DASHBOARD WIDGETS
+========================================================
+
+Login also returns:
+
+myWidgets
+
+Dashboard must render widgets dynamically.
+
+Do NOT hardcode the dashboard layout based only on role.
+
+Create a reusable Widget Registry.
+
+Example:
+
+widgetCode/widgetType
+→ React component
+
+Unknown widget:
+show graceful fallback instead of crashing.
+
+Dashboard requirements:
+
+- responsive grid
+- KPI cards
+- tables
+- charts where API data exists
+- loading skeleton
+- empty state
+- error state
+- refresh action where appropriate
+- date filters where appropriate
+
+If there is no KPI API documented:
+do NOT invent one.
+
+Show a professional placeholder using the widget metadata.
+
+========================================================
+APPLICATION SHELL
+========================================================
+
+Create:
+
+/login
+
+Authenticated layout:
+
+/dashboard
+
+Use Next.js route groups.
+
+Suggested:
+
+app/
+  (auth)/
+    login/
+  (dashboard)/
+    dashboard/
+    ...
+  layout.tsx
+  globals.css
+
+Dashboard shell:
+
+LEFT:
+- collapsible sidebar
+
+TOP:
+- company name
+- logged-in display name
+- role badge
+- notification placeholder
+- profile menu
+- logout
+
+BOTTOM:
+- product name
+- version
+
+MAIN:
+- page title
+- breadcrumbs where useful
+- content
+
+Mobile:
+- sidebar becomes Sheet
+
+Visual quality should feel like:
+
+Linear
+Vercel
+Stripe
+Modern enterprise SaaS
+
+Do NOT create a cheap template-looking dashboard.
+
+========================================================
+GLOBAL DESIGN SYSTEM
+========================================================
+
+Create reusable components.
+
+Examples:
+
+components/
+  ui/
+  layout/
+  common/
+  forms/
+  tables/
+  dialogs/
+  dashboard/
+  icons/
+
+Reusable components:
+
+- PageHeader
+- PageToolbar
+- DataTable
+- DataTablePagination
+- SearchInput
+- FilterBar
+- ConfirmDialog
+- FormDialog
+- FormSheet
+- EmptyState
+- ErrorState
+- LoadingSkeleton
+- StatusBadge
+- ActiveStatusBadge
+- DatePicker
+- DateRangePicker
+- SearchableSelect
+- AsyncSelect
+- CurrencyDisplay
+- QuantityDisplay
+- PercentageDisplay
+- PrintButton
+- ExcelExportButton
+- PermissionGate
+- CompanyScope
+- PageContainer
+- SectionCard
+
+Avoid duplicate code between modules.
+
+========================================================
+CRUD PAGE STANDARD
+========================================================
+
+Every master/transaction list page should follow a consistent pattern.
+
+Page:
+
+TITLE
+DESCRIPTION
+
+Toolbar:
+
+Search
+Filters
+Add
+Export Excel
+Print
+
+Table:
+
+- loading skeleton
+- empty state
+- proper columns
+- status badges
+- row actions
+- edit
+- delete
+- toggle active when applicable
+
+Add/Edit:
+
+Use Sheet for large forms.
+
+Use Dialog for small forms.
+
+Use:
+
+React Hook Form
+Zod
+
+Validation must match backend requirements.
+
+Delete:
+
+Use AlertDialog confirmation.
+
+After success:
+
+- toast
+- close modal
+- refresh list
+
+Do not reload entire browser unnecessarily.
+
+========================================================
+EXCEL
+========================================================
+
+Implement working Excel export.
+
+Use xlsx.
+
+Export visible/current filtered table data.
+
+Create reusable export utility.
+
+File names should be meaningful.
+
+Example:
+
+operators-2026-09-11.xlsx
+
+========================================================
+PRINT
+========================================================
+
+Implement real browser printing.
+
+Create print-friendly CSS.
+
+When printing:
+
+- hide sidebar
+- hide header
+- hide buttons
+- hide unnecessary controls
+- show report/table cleanly
+
+Do NOT create fake print buttons.
+
+========================================================
+PAGINATION
+========================================================
+
+If backend supports:
+
+page
+pageSize
+pageNumber
+totalCount
+
+implement server-side pagination.
+
+Create reusable pagination component.
+
+Maintain:
+
+- page
+- pageSize
+- filters
+- search
+
+when changing pages.
+
+========================================================
+FORMS
+========================================================
+
+Every form:
+
+React Hook Form
++
+Zod
+
+Requirements:
+
+- required validation
+- number validation
+- date validation
+- time validation
+- min/max validation
+- dependent dropdown validation
+- server error mapping
+- disabled submit during API request
+- prevent duplicate submissions
+- proper reset after success
+
+========================================================
+COMPANY SCOPING
+========================================================
+
+Normal company users:
+
+CompanyId comes from JWT.
+
+DO NOT send companyId unless backend requires it.
+
+SuperAdmin:
+
+When managing a company and backend supports it:
+
+?companyId=2
+
+Never allow a normal company user to manipulate another company's data through frontend parameters.
+
+========================================================
+MODULES
+========================================================
+
+Implement the complete frontend for these areas.
+
+1. Dashboard
+
+2. Production
+
+3. Machines
+
+4. Operators
+
+5. Components
+
+6. Attendance
+
+7. Quality
+
+8. Downtime
+
+9. Salary & Overtime
+
+10. Reports
+
+11. Administration
+
+12. SuperAdmin
+
+========================================================
+MASTER MODULES
+========================================================
+
+SHIFT
+
+Route:
+
+/masters/shifts
+
+APIs:
+
+GET /Shifts/GetAll?onlyActive=false
+POST /Shifts/Create
+PUT /Shifts/Update
+PATCH /Shifts/{id}/toggle-active
+DELETE /Shifts/{id}/Delete
+
+Create:
+
+{
+  "shiftName": "General",
+  "startTime": "08:00:00",
+  "endTime": "17:00:00",
+  "breakMinutes": 60,
+  "isActive": true
+}
+
+========================================================
+MACHINES
+========================================================
+
+Route:
+
+/masters/machines
+
+GET /Machines/GetAll
+
+Create:
+
+{
+  "machineCode": "...",
+  "machineName": "...",
+  "machineType": "...",
+  "location": "...",
+  "isActive": true
+}
+
+Update:
+
+code is immutable.
+
+Implement:
+
+- list
+- search
+- add
+- edit
+- toggle
+- delete
+- Excel
+- print
+
+========================================================
+COMPONENTS
+========================================================
+
+Route:
+
+/masters/components
+
+Fields:
+
+- componentCode
+- componentName
+- drawingNumber
+- unitOfMeasure
+- isActive
+
+Implement complete CRUD.
+
+========================================================
+MACHINE COMPONENTS
+========================================================
+
+Route:
+
+/masters/machine-components
+
+This represents:
+
+Machine + Component + production configuration.
+
+Example:
+
+{
+  "machineId": 1,
+  "componentId": 1,
+  "cycleTimeMinutes": 2.5,
+  "componentRate": 15,
+  "effectiveFrom": "2026-09-01",
+  "effectiveTo": null,
+  "isActive": true
+}
+
+UI:
+
+Machine dropdown
+Component dropdown
+Cycle Time
+Component Rate
+Effective From
+Effective To
+Active
+
+Load only active Machines and Components for dropdowns.
+
+Filters:
+
+Machine
+Component
+
+========================================================
+OPERATORS
+========================================================
+
+Route:
+
+/masters/operators
+
+Fields:
+
+{
+  "operatorCode": "OP-001",
+  "fullName": "John Sharma",
+  "phone": "9876543210",
+  "email": "john@x.com",
+  "dateOfJoining": "2025-01-15",
+  "designationOrTrade": "CNC Operator",
+  "userId": null,
+  "isActive": true
+}
+
+Implement full CRUD.
+
+========================================================
+DOWNTIME CATEGORIES
+========================================================
+
+Route:
+
+/masters/downtime-categories
+
+Example:
+
+{
+  "categoryName": "No Load",
+  "isActive": true
+}
+
+========================================================
+REJECTION TYPES
+========================================================
+
+Route:
+
+/masters/rejection-types
+
+Example:
+
+{
+  "typeName": "Machining",
+  "isActive": true
+}
+
+========================================================
+REJECTION REASONS
+========================================================
+
+Route:
+
+/masters/rejection-reasons
+
+Example:
+
+{
+  "rejectionTypeId": 1,
+  "reasonName": "Dimension OT",
+  "isActive": true
+}
+
+Important:
+
+Type dropdown
+→ Reasons dropdown filtered by selected Type.
+
+========================================================
+SALARY RULES
+========================================================
+
+Route:
+
+/masters/salary-rules
+
+Example:
+
+{
+  "ruleName": "Daily Operator",
+  "salaryType": "Daily",
+  "baseRate": 800,
+  "overtimeRate": 150,
+  "effectiveFrom": "2026-04-01",
+  "effectiveTo": null,
+  "isActive": true
+}
+
+salaryType:
+
+Hourly
+Daily
+Monthly
+
+========================================================
+ADMINISTRATION
+========================================================
+
+ROLES
+
+Route:
+
+/admin/roles
+
+APIs:
+
+GET /Roles/GetAll
+
+POST /Roles/Create
+
+PUT /Roles/Update
+
+POST /Roles/{id}/AssignMenus
+
+{
+  "menuIds": [1,2,3]
+}
+
+POST /Roles/{id}/AssignWidgets
+
+{
+  "widgetIds": [1,2]
+}
+
+Create a professional role permission UI.
+
+Show:
+
+Role
+Description
+Active
+Menus
+Widgets
+
+Allow:
+
+- select menus
+- select widgets
+- save assignments
+- loading states
+- confirmation
+- success toast
+
+========================================================
+USERS
+========================================================
+
+Route:
+
+/admin/users
+
+Create:
+
+POST /Users/Create
+
+{
+  "roleId": 3,
+  "username": "john",
+  "email": "john@acme.com",
+  "displayName": "John",
+  "password": "User@123",
+  "isActive": true
+}
+
+Implement:
+
+- list
+- create
+- edit
+- toggle active
+- reset password
+- delete
+
+Never display passwords.
+
+========================================================
+ATTENDANCE
+========================================================
+
+Route:
+
+/attendance
+
+GET:
+
+/Attendance/GetAll?fromDate=&toDate=&operatorId=&page=&pageSize=
+
+POST:
+
+/Attendance/Create
+
+Example:
+
+{
+  "operatorId": 1,
+  "shiftId": 1,
+  "attendanceDate": "2026-09-11",
+  "inTime": "2026-09-11T08:05:00",
+  "outTime": "2026-09-11T17:10:00",
+  "status": "Present",
+  "workingMinutes": null,
+  "overtimeMinutes": 0,
+  "remarks": null
+}
+
+Statuses:
+
+Present
+Absent
+HalfDay
+Leave
+Holiday
+
+UI:
+
+- date filters
+- operator filter
+- status filter if API supports
+- add attendance
+- edit
+- delete
+- Excel
+- print
+
+========================================================
+WORK SESSIONS
+========================================================
+
+Route:
+
+/production/work-sessions
+
+This is a major screen.
+
+Flow:
+
+Attendance
+↓
+Start Work Session
+↓
+Production / Rejection / Downtime
+↓
+Complete Work Session
+
+Start:
+
+POST /WorkSessions/Start
+
+{
+  "workDate": "2026-09-11",
+  "shiftId": 1,
+  "operatorId": 1,
+  "machineId": 1,
+  "componentId": 1,
+  "machineComponentId": 1,
+  "startTime": "2026-09-11T08:15:00",
+  "remarks": null
+}
+
+Complete:
+
+POST /WorkSessions/Complete
+
+{
+  "id": 1,
+  "endTime": "2026-09-11T17:00:00",
+  "remarks": ""
+}
+
+Cancel:
+
+POST /WorkSessions/{id}/Cancel
+
+Statuses:
+
+Open
+Completed
+Cancelled
+
+UI actions must depend on status.
+
+Open session:
+- Production entry
+- Rejection entry
+- Downtime
+- Complete
+- Cancel
+
+Completed:
+- view only
+
+Cancelled:
+- view only
+
+========================================================
+PRODUCTION ENTRIES
+========================================================
+
+Route:
+
+/production/entries
+
+POST:
+
+/ProductionEntries/Create
+
+{
+  "workSessionId": 1,
+  "producedQuantity": 25,
+  "entryTime": null,
+  "remarks": null
+}
+
+Implement:
+
+- session filter
+- date filter
+- entry form
+- table
+- Excel
+- print
+
+Only allow production entry against valid Open work session according to backend rules.
+
+========================================================
+REJECTION ENTRIES
+========================================================
+
+Route:
+
+/quality/rejection-entries
+
+POST:
+
+/RejectionEntries/Create
+
+{
+  "workSessionId": 1,
+  "rejectionTypeId": 1,
+  "rejectionReasonId": 1,
+  "rejectedQuantity": 3,
+  "entryTime": null,
+  "remarks": null
+}
+
+Important cascading UI:
+
+Rejection Type
+↓
+load matching Rejection Reasons
+
+Do not allow invalid type/reason combination.
+
+========================================================
+DOWNTIME
+========================================================
+
+Route:
+
+/downtime/entries
+
+Create open downtime:
+
+endTime = null
+
+Close:
+
+POST /DowntimeEntries/Close
+
+{
+  "id": 1,
+  "endTime": "...",
+  "remarks": ""
+}
+
+UI must clearly show:
+
+ACTIVE DOWNTIME
+
+with:
+
+- category
+- start time
+- elapsed duration
+- close button
+
+Completed downtime:
+
+show duration and status.
+
+========================================================
+OVERTIME
+========================================================
+
+Route:
+
+/salary/overtime
+
+APIs:
+
+GET /Overtime/GetAll
+
+GET /Overtime/Preview/{attendanceId}
+
+POST /Overtime/FromAttendance/{attendanceId}
+
+POST /Overtime/Create
+
+PUT /Overtime/Update
+
+POST /Overtime/{id}/Approve
+
+DELETE /Overtime/{id}/Delete
+
+Flow:
+
+Attendance
+↓
+Preview OT
+↓
+Show calculated OT minutes
+↓
+Create from attendance
+↓
+Approve
+
+Approved OT becomes read-only.
+
+UI:
+
+- filters
+- preview dialog
+- calculated minutes
+- rate
+- amount if returned
+- approve
+- edit draft
+- delete draft
+
+========================================================
+SALARY RECORDS
+========================================================
+
+Route:
+
+/salary/records
+
+Generate:
+
+POST /SalaryRecords/Generate
+
+{
+  "operatorId": 1,
+  "salaryRuleId": 1,
+  "periodMonth": 9,
+  "periodYear": 2026,
+  "incentiveAmount": 500,
+  "deductionAmount": 100
+}
+
+Final:
+
+BaseAmount
++
+OvertimeAmount
++
+IncentiveAmount
+-
+DeductionAmount
+
+Status:
+
+Draft
+Approved
+
+Only Draft can be edited/deleted.
+
+Approved records are read-only.
+
+UI:
+
+- month/year filters
+- operator filter
+- generate salary
+- edit incentive
+- edit deduction
+- approve
+- view calculation breakdown
+- print
+- Excel
+
+========================================================
+SUPER ADMIN
+========================================================
+
+Only show SuperAdmin pages when:
+
+isSuperAdmin === true
+
+Implement:
+
+Companies
+Platform Modules
+Platform Menus
+Platform Widgets
+
+Company management:
+
+- create
+- update
+- list
+- details
+- active/inactive
+- logo upload
+- assign modules
+- assign menus
+- SMTP settings
+- create company admin
+
+Logo:
+
+POST /Companies/{id}/UploadLogo
+
+multipart/form-data
+
+field:
+
+logo
+
+SuperAdmin company management must be visually separated from normal company administration.
+
+========================================================
+PRODUCTION BUSINESS FLOW
+========================================================
+
+Build the UI around this real-world flow:
+
+1. Company setup
+
+2. Create shifts
+
+3. Create machines
+
+4. Create components
+
+5. Configure Machine + Component
+
+6. Create operators
+
+7. Configure downtime categories
+
+8. Configure rejection types
+
+9. Configure rejection reasons
+
+10. Configure salary rules
+
+11. Create users
+
+12. Create roles
+
+13. Assign menus/widgets
+
+14. Daily attendance
+
+15. Start work session
+
+16. Production entries
+
+17. Rejection entries
+
+18. Downtime entries
+
+19. Complete work session
+
+20. Overtime
+
+21. Approve overtime
+
+22. Generate salary
+
+23. Approve salary
+
+24. Reports/dashboard
+
+The UI should make this workflow intuitive.
+
+========================================================
+PRODUCTION EXAMPLE
+========================================================
+
+Example:
+
+Operator:
+John
+
+Machine:
+CNC-01
+
+Component:
+Shaft
+
+Cycle time:
+10.25 minutes
+
+Shift:
+11 hours
+
+Available time:
+
+11 × 60 = 660 minutes
+
+Expected production:
+
+660 / 10.25
+
+≈ 64 pieces
+
+Actual good production:
+
+54 pieces
+
+Productivity:
+
+approximately 84%
+
+Do not hardcode this calculation into frontend unless backend provides the required values.
+
+If backend has a calculation endpoint:
+consume backend result.
+
+If backend does not expose calculation:
+do not invent an API.
+
+Frontend should display backend-provided production metrics.
+
+========================================================
+REPORTS
+========================================================
+
+Create professional report screens where backend endpoints/data are available.
+
+Suggested routes:
+
+/reports/production
+/reports/productivity
+/reports/efficiency
+/reports/attendance
+/reports/rejection
+/reports/downtime
+/reports/operator
+/reports/machine
+/reports/component
+
+Every report should support where applicable:
+
+- date range
+- operator
+- machine
+- component
+- shift
+- status
+- search
+- table
+- KPI summary
+- Excel
+- Print
+
+IMPORTANT:
+
+Do not invent report APIs.
+
+First inspect the backend/API documentation provided.
+
+If a requested report API is not available:
+build the frontend structure using available endpoints/data aggregation only when technically possible.
+
+Clearly mark missing backend data rather than fabricating numbers.
+
+========================================================
+DASHBOARD
+========================================================
+
+Use backend myWidgets.
+
+Potential widgets:
+
+TODAY_PRODUCTION
+
+PRODUCTIVITY
+
+EFFICIENCY
+
+ATTENDANCE_TODAY
+
+MACHINE_STATUS
+
+ACTIVE_WORK_SESSIONS
+
+TODAY_REJECTION
+
+TODAY_DOWNTIME
+
+TOP_OPERATORS
+
+MACHINE_PERFORMANCE
+
+PRODUCTION_TREND
+
+QUALITY_DOWNTIME_TREND
+
+Only render widgets assigned to the user.
+
+Use a registry architecture.
+
+========================================================
+PERMISSIONS
+========================================================
+
+Frontend must support RBAC.
+
+Do not rely on hiding UI alone for security.
+
+Backend remains the final authorization authority.
+
+Frontend should still provide UX-level permission handling.
+
+Create:
+
+usePermission()
+PermissionGate
+RoleGate
+SuperAdminGate
+
+Possible actions:
+
+VIEW
+ADD
+EDIT
+DELETE
+EXPORT
+IMPORT
+APPROVE
+REJECT
+
+Example:
+
+<PermissionGate permission="ADD">
+   <Button>Add</Button>
+</PermissionGate>
+
+If user lacks permission:
+
+- hide action where appropriate
+OR
+- disable action where appropriate
+
+Never expose inaccessible administrative screens through navigation.
+
+========================================================
+DEPENDENT DROPDOWNS
+========================================================
+
+Implement reusable async/searchable selects.
+
+Examples:
+
+Machine
+Component
+Machine Component
+
+and:
+
+Rejection Type
+→ Rejection Reason
+
+and:
+
+Operator
+→ Attendance
+
+and:
+
+Operator + Machine + Component
+→ Work Session
+
+Machine Component should be determined from selected Machine + Component.
+
+Do not allow invalid combinations.
+
+========================================================
+DATE/TIME
+========================================================
+
+Use date-fns.
+
+Create consistent formatting utilities.
+
+Do not scatter date formatting throughout components.
+
+Create:
+
+formatDate()
+formatDateTime()
+formatTime()
+formatCurrency()
+formatNumber()
+
+Handle null values gracefully.
+
+Use correct local date/time behavior.
+
+Avoid accidental UTC date shifts.
+
+========================================================
+API ARCHITECTURE
+========================================================
+
+Create:
+
+lib/
+  api/
+    client.ts
+    auth.ts
+    companies.ts
+    modules.ts
+    menus.ts
+    widgets.ts
+    roles.ts
+    users.ts
+    shifts.ts
+    machines.ts
+    components.ts
+    machine-components.ts
+    operators.ts
+    downtime-categories.ts
+    rejection-types.ts
+    rejection-reasons.ts
+    salary-rules.ts
+    attendance.ts
+    work-sessions.ts
+    production-entries.ts
+    rejection-entries.ts
+    downtime-entries.ts
+    overtime.ts
+    salary-records.ts
+
+Create typed service methods.
+
+Do not put raw Axios calls inside UI components.
+
+Components should call services/hooks.
+
+========================================================
+STATE MANAGEMENT
+========================================================
+
+Use Zustand.
+
+Suggested stores:
+
+auth-store
+sidebar-store
+widget-store
+ui-store
+
+Do not put everything into one giant store.
+
+Server data should remain managed through API/service/query pattern.
+
+If you choose TanStack Query, you may use it.
+
+If using TanStack Query:
+
+- proper query keys
+- invalidation
+- mutations
+- loading states
+- stale handling
+
+This is preferred for server state.
+
+========================================================
+ERROR HANDLING
+========================================================
+
+Create centralized error handling.
+
+Handle:
+
+400
+401
+403
+404
+409
+422
+500
+network failure
+timeout
+
+UX:
+
+400/422:
+field/form error
+
+401:
+logout and login
+
+403:
+permission denied UI
+
+404:
+not found
+
+409:
+conflict toast
+
+500:
+friendly server error
+
+Never show raw stack traces.
+
+========================================================
+LOADING STATES
+========================================================
+
+Every API page must have proper loading UX.
+
+Use:
+
+Skeleton
+
+not blank screens.
+
+Buttons:
+
+"Saving..."
+"Deleting..."
+"Approving..."
+"Generating..."
+
+Disable duplicate submissions.
+
+========================================================
+EMPTY STATES
+========================================================
+
+Every list/table:
+
+If no records:
+
+show:
+
+icon
+"No records found"
+short explanation
+optional Add button
+
+========================================================
+RESPONSIVE DESIGN
+========================================================
+
+Must work on:
+
+Desktop
+Laptop
+Tablet
+Mobile
+
+Tables on mobile:
+
+- horizontal scroll
+OR
+- responsive card layout
+
+Forms:
+
+Desktop:
+2-column where appropriate
+
+Mobile:
+1-column
+
+========================================================
+ACCESSIBILITY
+========================================================
+
+Implement:
+
+- keyboard navigation
+- labels
+- aria attributes where needed
+- focus handling
+- dialog accessibility
+- visible focus states
+- semantic buttons
+- accessible dropdowns
+
+========================================================
+SECURITY
+========================================================
+
+Do not:
+
+- expose refresh tokens unnecessarily
+- expose passwords
+- hardcode secrets
+- commit .env
+- log access tokens
+- log passwords
+- trust frontend authorization as security
+
+Provide .env.example.
+
+========================================================
+PROJECT STRUCTURE
+========================================================
+
+Use a clean scalable structure such as:
+
+src/
+  app/
+  components/
+  features/
+  hooks/
+  lib/
+  services/
+  stores/
+  types/
+  schemas/
+  utils/
+  config/
+
+Organize feature code logically.
+
+Avoid a huge monolithic file.
+
+========================================================
+TYPES
+========================================================
+
+Create TypeScript interfaces/types for:
+
+- API response
+- Auth
+- User
+- Role
+- Sidebar
+- Widget
+- Company
+- Shift
+- Machine
+- Component
+- MachineComponent
+- Operator
+- DowntimeCategory
+- RejectionType
+- RejectionReason
+- SalaryRule
+- Attendance
+- WorkSession
+- ProductionEntry
+- RejectionEntry
+- DowntimeEntry
+- Overtime
+- SalaryRecord
+
+Separate:
+
+Request types
+Response types
+UI/form types
+
+where useful.
+
+========================================================
+API UNKNOWN / MISSING ENDPOINT POLICY
+========================================================
+
+THIS IS CRITICAL.
+
+If you discover that an endpoint required for a UI feature is NOT documented:
+
+DO NOT invent:
+
+/api/dashboard
+/api/reports
+/api/statistics
+
+etc.
+
+Instead:
+
+1. inspect all documented endpoints
+2. determine whether the feature can be built from existing API data
+3. if yes, implement it
+4. if no, create a clean frontend placeholder
+5. document the missing endpoint in README
+
+Never fabricate production data.
+
+========================================================
+NO MOCK DATA IN PRODUCTION
+========================================================
+
+You may create development mock adapters ONLY if needed for UI development.
+
+But production application must use:
+
+https://prodvex.runasp.net/api/v1/
+
+Do not leave fake data connected by default.
+
+========================================================
+CODE QUALITY
+========================================================
+
+Follow:
+
+- DRY
+- SOLID where practical
+- reusable components
+- strict TypeScript
+- no unnecessary any
+- no console.log in production
+- no dead code
+- no duplicate API logic
+- no giant components
+- meaningful naming
+- clean imports
+
+Use ESLint.
+
+Use Prettier.
+
+========================================================
+UI DETAILS
+========================================================
+
+Use shadcn/ui components.
+
+Use:
+
+Button
+Input
+Label
+Select
+Textarea
+Checkbox
+Switch
+Badge
+Card
+Table
+Dialog
+Sheet
+AlertDialog
+Tabs
+DropdownMenu
+Popover
+Calendar
+Tooltip
+ScrollArea
+Separator
+Skeleton
+Avatar
+Sonner
+
+Use consistent:
+
+border radius
+spacing
+typography
+shadows
+hover states
+focus states
+empty states
+
+Use a professional neutral enterprise theme.
+
+Do not overuse colors.
+
+Status colors can be semantic.
+
+========================================================
+IMPORTANT USER EXPERIENCE
+========================================================
+
+The frontend should feel like a real commercial SaaS product.
+
+Not:
+
+"CRUD demo"
+
+It should feel like:
+
+professional manufacturing ERP / production management software.
+
+Users should understand:
+
+WHAT
+WHERE
+STATUS
+ACTION
+RESULT
+
+at a glance.
+
+For example:
+
+Work Session row:
+
+Operator
+Machine
+Component
+Shift
+Start
+End
+Duration
+Status
+Production
+Rejection
+Downtime
+Actions
+
+========================================================
+EXPECTED DELIVERABLE
+========================================================
+
+Build the ENTIRE frontend project.
+
+Not just an explanation.
+
+Generate actual implementation.
+
+Start from project architecture and implement everything.
+
+Required:
+
+1. Next.js project
+2. TypeScript
+3. Tailwind
+4. shadcn/ui
+5. Authentication
+6. Zustand
+7. Axios
+8. API services
+9. Protected routes
+10. Dynamic sidebar
+11. Dynamic dashboard widgets
+12. Dashboard
+13. All masters
+14. Roles
+15. Users
+16. Attendance
+17. Work sessions
+18. Production
+19. Quality/rejections
+20. Downtime
+21. Overtime
+22. Salary
+23. Reports where supported
+24. SuperAdmin
+25. Excel
+26. Print
+27. Responsive UI
+28. Error handling
+29. Loading states
+30. Empty states
+31. Permission-aware UI
+32. README
+33. .env.example
+34. Build configuration
+
+========================================================
+IMPLEMENTATION STRATEGY
+========================================================
+
+Do NOT dump 100 unrelated files at once without structure.
+
+Work in phases.
+
+PHASE 1
+Project foundation:
+
+- package.json
+- Next.js
+- Tailwind
+- shadcn
+- theme
+- API client
+- environment configuration
+- Zustand
+- auth
+- protected routes
+- layout
+
+PHASE 2
+App shell:
+
+- sidebar
+- header
+- mobile navigation
+- profile menu
+- dynamic routing
+- permissions
+
+PHASE 3
+Dashboard:
+
+- dynamic widgets
+- widget registry
+- responsive dashboard
+
+PHASE 4
+Masters:
+
+- shifts
+- machines
+- components
+- machine components
+- operators
+- downtime categories
+- rejection types
+- rejection reasons
+- salary rules
+
+Create reusable CRUD architecture instead of copying huge code blocks.
+
+PHASE 5
+Administration:
+
+- roles
+- menu assignment
+- widget assignment
+- users
+- reset password
+
+PHASE 6
+Daily Operations:
+
+- attendance
+- work sessions
+- production
+- rejection
+- downtime
+
+PHASE 7
+Salary:
+
+- overtime
+- salary records
+
+PHASE 8
+Reports
+
+PHASE 9
+SuperAdmin
+
+PHASE 10
+Polish:
+
+- responsive
+- loading
+- empty states
+- error handling
+- accessibility
+- Excel
+- print
+- performance
+- production build
+
+========================================================
+HOW YOU SHOULD WORK
+========================================================
+
+Before writing implementation:
+
+1. Understand the API contracts.
+2. Create an endpoint inventory.
+3. Create frontend architecture.
+4. Create route map.
+5. Create component architecture.
+6. Create type architecture.
+7. Create permission architecture.
+8. Create API service architecture.
+9. Then implement.
+
+After implementation:
+
+Run/check:
+
+npm install
+npm run lint
+npm run build
+
+Fix all TypeScript errors.
+
+Fix all lint errors.
+
+Fix all build errors.
+
+Ensure there are no missing imports.
+
+Ensure routes compile.
+
+Ensure forms compile.
+
+Ensure API services compile.
+
+========================================================
+FINAL PROJECT QUALITY CHECK
+========================================================
+
+Before declaring completion, verify:
+
+AUTH
+[ ] login works
+[ ] logout works
+[ ] refresh works
+[ ] 401 handling works
+
+LAYOUT
+[ ] sidebar dynamic
+[ ] mobile sidebar
+[ ] active route
+[ ] profile
+[ ] logout
+
+RBAC
+[ ] menu visibility
+[ ] action visibility
+[ ] SuperAdmin separation
+
+MASTERS
+[ ] CRUD
+[ ] search
+[ ] filters
+[ ] validation
+[ ] toggle
+[ ] delete
+[ ] Excel
+[ ] print
+
+OPERATIONS
+[ ] attendance
+[ ] work session
+[ ] production
+[ ] rejection
+[ ] downtime
+
+SALARY
+[ ] overtime
+[ ] approval
+[ ] salary generation
+[ ] salary approval
+
+UX
+[ ] loading
+[ ] empty
+[ ] errors
+[ ] responsive
+[ ] accessibility
+
+QUALITY
+[ ] TypeScript
+[ ] lint
+[ ] build
+[ ] no fake production data
+[ ] no hardcoded secrets
+[ ] no invented API endpoints
+
+========================================================
+IMPORTANT
+========================================================
+
+Do not ask me to manually create dozens of files if you can generate them.
+
+Do not stop after creating login.
+
+Do not stop after creating dashboard.
+
+Do not stop after creating one CRUD page.
+
+The goal is the COMPLETE FRONTEND APPLICATION.
+
+If the response/output limit prevents implementing everything in one response:
+
+continue in sequential phases.
+
+Maintain the same architecture and naming across phases.
+
+Never restart the architecture.
+
+Never change previously established API contracts.
+
+At every phase, provide the exact files created/modified and complete code for those files.
+
+========================================================
+SUCCESS CRITERIA
+========================================================
+
+When finished, I should be able to:
+
+1. clone/open the project
+2. install dependencies
+3. configure NEXT_PUBLIC_API_BASE_URL
+4. run npm run dev
+5. open /login
+6. login using my existing backend
+7. see the correct company
+8. see the correct role
+9. see dynamically assigned sidebar
+10. see dynamically assigned widgets
+11. manage masters
+12. manage users/roles
+13. manage attendance
+14. create work sessions
+15. record production
+16. record rejection
+17. record downtime
+18. manage overtime
+19. generate salary
+20. view supported reports
+21. use Excel export
+22. use Print
+23. use the application on mobile/tablet/desktop
+
+Build this as a REAL PRODUCTION SaaS FRONTEND, not a prototype.
+
+Start now with:
+
+A. Final architecture
+B. Complete route map
+C. API endpoint map
+D. Type architecture
+E. Permission architecture
+F. Folder structure
+G. Phase 1 implementation
+
+Then continue through all phases until the frontend is complete.
