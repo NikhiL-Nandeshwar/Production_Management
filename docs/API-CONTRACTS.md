@@ -1,14 +1,14 @@
 # API contract inventory and connection checklist
 
-Source: the supplied `Pasted text(3).txt` (preserved as `original-specification.txt`). The live Swagger document could not be retrieved from the delivery environment. No controller naming convention was extrapolated into a new endpoint.
+Source: the supplied `Pasted text(3).txt` (preserved as `original-specification.txt`) and verified Swagger response samples. No controller naming convention was extrapolated into a new endpoint.
 
 ## Module route inventory
 
 | Frontend route                 | Documented list    | Documented create/start/generate |
 | ------------------------------ | ------------------ | -------------------------------- |
-| `/masters/shifts`              | /Shifts/GetAll     | /Shifts/Create                   |
-| `/masters/machines`            | /Machines/GetAll   | Not supplied                     |
-| `/masters/components`          | Not supplied       | Not supplied                     |
+| `/masters/shifts`              | /Shifts/GetAll     | /Shifts/Create, /Shifts/Update  |
+| `/masters/machines`            | /Machines/GetAll   | /Machines/Create, /Machines/Update |
+| `/masters/components`          | /Components/GetAll | /Components/Create, /Components/Update |
 | `/masters/machine-components`  | Not supplied       | Not supplied                     |
 | `/masters/operators`           | Not supplied       | Not supplied                     |
 | `/masters/downtime-categories` | Not supplied       | Not supplied                     |
@@ -45,9 +45,14 @@ Source: the supplied `Pasted text(3).txt` (preserved as `original-specification.
 | POST `/Auth/login`                                            | Connected; validates required session envelope fields                                   |
 | POST `/Auth/logout`                                           | Connected while refresh token is available in memory                                    |
 | POST `/Auth/refresh`                                          | Single-flight transport included; response decoder required                             |
-| PUT `/Shifts/Update`                                          | URL known, update body/ID contract missing; intentionally no update request             |
-| PATCH `/Shifts/{id}/toggle-active`                            | Row action; requires verified ID mapping                                                |
-| DELETE `/Shifts/{id}/Delete`                                  | Confirmed row action; requires verified ID mapping                                      |
+| GET `/Shifts/{id}/GetById`                                    | Connected with verified direct-object response DTO                                      |
+| PUT `/Shifts/Update`                                          | Connected with verified ID and field contract                                          |
+| PATCH `/Shifts/{id}/toggle-active`                            | Connected with verified ID mapping                                                      |
+| GET `/Machines/{id}/GetById`                                  | Connected with verified direct-object response DTO                                      |
+| PUT `/Machines/Update`                                        | Connected with verified immutable code and field contract                              |
+| PATCH `/Machines/{id}/toggle-active`                          | Connected with verified ID mapping                                                      |
+| GET `/Components/{id}/GetById`                                | Connected with verified direct-object response DTO                                      |
+| PUT `/Components/Update`                                      | Connected with verified field contract                                                  |
 | POST `/Roles/Create`, PUT `/Roles/Update`                     | Request fields not supplied; disabled                                                   |
 | POST `/Roles/{id}/AssignMenus`                                | Typed service; UI awaits full selectable catalog and current assignments                |
 | POST `/Roles/{id}/AssignWidgets`                              | Typed service; UI awaits full catalog and current assignments                           |
@@ -62,9 +67,9 @@ Source: the supplied `Pasted text(3).txt` (preserved as `original-specification.
 
 ## Connecting omitted contracts
 
-1. Supply the actual Swagger JSON and representative sanitized response samples.
+1. Supply the actual Swagger JSON and representative sanitized response samples for remaining modules.
 2. Update only verified URLs in `src/config/resources.ts`.
-3. Configure `listContracts` in `src/config/contracts.ts`. Each adapter takes `data`, not the outer envelope, and returns `rows`; add `total` for documented pagination and `idField` for a verified identifier. Do not assume `items`, `records`, `data`, `id`, or `totalCount` without confirmation. A direct array of objects is structurally accepted; wrapped objects fail visibly.
+3. Configure `listContracts` in `src/config/contracts.ts`. Each adapter takes `data`, not the outer envelope, and returns `rows`; add `total` for documented pagination and `idField` for a verified identifier. Do not assume `items`, `records`, `data`, or `totalCount` without confirmation. Unsupported response shapes must fail visibly.
 4. Document returned fields for labels and dependent lookups. Current lookup filtering uses the explicitly referenced business fields (`isActive`, `machineId`, `componentId`, `rejectionTypeId`, `status`). Confirm their presence in response DTOs before enabling a lookup. Missing `status` never counts as Open/Draft.
 5. Add verified refresh and action permission decoders. Do not map permissions from guessed role names.
 6. Add update schemas with the actual immutable and identifier fields. No generic update sends an invented `{id}`.
@@ -73,7 +78,7 @@ Source: the supplied `Pasted text(3).txt` (preserved as `original-specification.
 
 ## Known gaps by area
 
-- **Masters:** only shift endpoints and machine GET were given. Other controller URLs, GetById APIs, update bodies, IDs, nullability, uniqueness rules, validation limits and response DTOs are missing.
+- **Masters:** Shift, Machine, and Component list/detail/create/update response DTOs are verified. Shift and Machine toggle-active actions are verified. Component has no documented toggle-active endpoint. Delete endpoints, nullability, uniqueness rules, and validation limits remain undocumented.
 - **Lookups:** operator/component/machine-component/rejection/salary-rule list APIs missing; even documented shift/role lists omit their returned ID fields. Forms requiring those lookups are deliberately blocked. Attendance filtering accepts an explicitly entered operator ID because the filter parameter is documented; it does not fabricate lookup choices.
 - **Roles:** complete menus/widgets catalogs and current assignments absent. Current user's sidebar is not a complete assignment catalog and must not be used to overwrite another role's permissions.
 - **Users:** list/update/toggle/reset-password/delete APIs and contracts absent.
@@ -85,7 +90,7 @@ Source: the supplied `Pasted text(3).txt` (preserved as `original-specification.
 - **Salary:** Generate known; lists/edit/delete/approve APIs and calculation response absent. No salary totals are fabricated.
 - **SuperAdmin:** logo upload known; company CRUD/SMTP/admin creation/module/menu assignments and platform catalog APIs absent.
 - **Reports/dashboard:** no report/KPI data endpoints or widget schemas supplied. Only assigned metadata/fallbacks are displayed.
-- **Company scope:** no list endpoint in the supplied excerpt explicitly documents a companyId query parameter. None is automatically sent, including for SuperAdmin. Company logo uses the specifically documented path ID, behind SuperAdmin gating.
+- **Company scope:** verified Shift, Machine, and Component list/detail/create/update/action requests use the `companyId` query parameter. Other modules retain their existing contract status. Company logo uses the specifically documented path ID, behind SuperAdmin gating.
 
 ## Validation limits
 

@@ -4,7 +4,8 @@ export interface ApiResponse<T> {
   statusCode: number;
   data: T;
   errors: string[] | Record<string, string[]> | null;
-  timestamp?: string;
+  traceId: string | null;
+  timestamp: string;
 }
 export type DataRow = Record<string, unknown>;
 export interface SidebarMenu {
@@ -62,6 +63,67 @@ export interface User {
   email: string;
   displayName: string;
   isActive: boolean;
+}
+export interface CompanyMenu {
+  id: number;
+  menuId: number;
+  menuCode: string;
+  displayName: string;
+  moduleId: number;
+  isEnabled: boolean;
+  sortOrder: number;
+}
+export interface CompanyWidget {
+  id: number;
+  widgetId: number;
+  widgetCode: string;
+  widgetName: string;
+  widgetType: string;
+  isEnabled: boolean;
+}
+export interface AssignedMenu {
+  menuId: number;
+  menuCode: string;
+  displayName: string;
+  moduleId: number;
+  isVisible: boolean;
+}
+export interface AssignedWidget {
+  widgetId: number;
+  widgetCode: string;
+  widgetName: string;
+  isVisible: boolean;
+  sortOrder: number;
+}
+export interface Shift {
+  id: number;
+  companyId: number;
+  shiftName: string;
+  startTime: string;
+  endTime: string;
+  breakMinutes: number;
+  isActive: boolean;
+  createdAt: string;
+}
+export interface Machine {
+  id: number;
+  companyId: number;
+  machineCode: string;
+  machineName: string;
+  machineType: string;
+  location: string;
+  isActive: boolean;
+  createdAt: string;
+}
+export interface Component {
+  id: number;
+  companyId: number;
+  componentCode: string;
+  componentName: string;
+  drawingNumber: string;
+  unitOfMeasure: string;
+  isActive: boolean;
+  createdAt: string;
 }
 export type ActionPermission =
   | 'VIEW'

@@ -168,7 +168,14 @@ function UserForm({
           aria-invalid={!!errors.username}
           disabled={userId !== null}
         />
-        {errors.username && <span className="field-error">{errors.username.message}</span>}
+        {userId !== null && (
+          <span className="field-hint text-amber-800">
+            Username cannot be changed after the user is created.
+          </span>
+        )}
+        {errors.username && (
+          <span className="field-error">{errors.username.message}</span>
+        )}
       </label>
       <label className="field">
         Email

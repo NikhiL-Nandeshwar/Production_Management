@@ -5,6 +5,9 @@ export interface ShiftsCreateRequest {
   breakMinutes: number;
   isActive: boolean;
 }
+export interface ShiftsUpdateRequest extends ShiftsCreateRequest {
+  id: number;
+}
 
 export interface MachinesCreateRequest {
   machineCode: string;
@@ -13,9 +16,23 @@ export interface MachinesCreateRequest {
   location: string;
   isActive: boolean;
 }
+export interface MachinesUpdateRequest {
+  id: number;
+  machineName: string;
+  machineType: string;
+  location: string;
+  isActive: boolean;
+}
 
 export interface ComponentsCreateRequest {
   componentCode: string;
+  componentName: string;
+  drawingNumber: string;
+  unitOfMeasure: string;
+  isActive: boolean;
+}
+export interface ComponentsUpdateRequest {
+  id: number;
   componentName: string;
   drawingNumber: string;
   unitOfMeasure: string;

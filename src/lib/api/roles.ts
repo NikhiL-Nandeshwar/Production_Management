@@ -2,7 +2,7 @@ import { getList } from './resources';
 import { mutation, request } from './client';
 import { ApiError } from './errors';
 import type { Role } from '@/types/api';
-import { executeAction } from './resources';
+import type { AssignedMenu, AssignedWidget } from '@/types/api';
 import type {
   AssignMenusRequest,
   AssignWidgetsRequest,
@@ -47,7 +47,58 @@ export const updateRole = (companyId: number, payload: RoleUpdateRequest) =>
 export const toggleRoleActive = (id: number, companyId: number) =>
   mutation('PATCH', `/Roles/${id}/toggle-active`, undefined, { companyId });
 
-export const assignMenus = (id: number, payload: AssignMenusRequest) =>
-  executeAction('POST', `/Roles/${id}/AssignMenus`, payload);
-export const assignWidgets = (id: number, payload: AssignWidgetsRequest) =>
-  executeAction('POST', `/Roles/${id}/AssignWidgets`, payload);
+function decodeAssignedMenu(value: unknown): AssignedMenu {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    throw new ApiError('The assigned menu response returned an unsupported format.');
+  const menu = value as AssignedMenu;
+  if (
+    !Number.isInteger(menu.menuId) ||
+    typeof menu.menuCode !== 'string' ||
+    typeof menu.displayName !== 'string' ||
+    !Number.isInteger(menu.moduleId) ||
+    typeof menu.isVisible !== 'boolean'
+  )
+    throw new ApiError('The assigned menu response is missing required fields.');
+  return menu;
+}
+
+function decodeAssignedWidget(value: unknown): AssignedWidget {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    throw new ApiError('The assigned widget response returned an unsupported format.');
+  const widget = value as AssignedWidget;
+  if (
+    !Number.isInteger(widget.widgetId) ||
+    typeof widget.widgetCode !== 'string' ||
+    typeof widget.widgetName !== 'string' ||
+    typeof widget.isVisible !== 'boolean' ||
+    !Number.isInteger(widget.sortOrder)
+  )
+    throw new ApiError('The assigned widget response is missing required fields.');
+  return widget;
+}
+
+export const assignMenus = async (
+  id: number,
+  companyId: number,
+  payload: AssignMenusRequest,
+): Promise<{ data: AssignedMenu[]; message: string }> => {
+  const result = await mutation('POST', `/Roles/${id}/AssignMenus`, payload, {
+    companyId,
+  });
+  if (!Array.isArray(result.data))
+    throw new ApiError('The assigned menu list response is invalid.');
+  return { data: result.data.map(decodeAssignedMenu), message: result.message };
+};
+
+export const assignWidgets = async (
+  id: number,
+  companyId: number,
+  payload: AssignWidgetsRequest,
+): Promise<{ data: AssignedWidget[]; message: string }> => {
+  const result = await mutation('POST', `/Roles/${id}/AssignWidgets`, payload, {
+    companyId,
+  });
+  if (!Array.isArray(result.data))
+    throw new ApiError('The assigned widget list response is invalid.');
+  return { data: result.data.map(decodeAssignedWidget), message: result.message };
+};

@@ -17,6 +17,8 @@ import {
   toggleRoleActive,
   updateRole,
 } from '@/lib/api/roles';
+import { assignMenus, assignWidgets } from '@/lib/api/roles';
+import { getMenus, getWidgets } from '@/lib/api/companies';
 import { errorText, ApiError } from '@/lib/api/errors';
 import { formatDate, formatNumber } from '@/utils/format';
 import { Button } from '@/components/ui/button';
@@ -36,6 +38,200 @@ const roleSchema = z.object({
   isActive: z.boolean(),
 });
 type RoleFormValues = z.infer<typeof roleSchema>;
+
+function RolePermissionPanel({
+  companyId,
+  roles,
+}: {
+  companyId: number;
+  roles: Role[];
+}) {
+  const client = useQueryClient();
+  const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
+  const [selectedMenuIds, setSelectedMenuIds] = useState<number[]>([]);
+  const [selectedWidgetIds, setSelectedWidgetIds] = useState<number[]>([]);
+  const selectedRole = roles.find((role) => role.id === selectedRoleId) || null;
+  const menus = useQuery({
+    queryKey: ['company-menus', companyId],
+    queryFn: () => getMenus(companyId),
+    enabled: selectedRole !== null,
+  });
+  const widgets = useQuery({
+    queryKey: ['company-widgets', companyId],
+    queryFn: () => getWidgets(companyId),
+    enabled: selectedRole !== null,
+  });
+  const menuAssignment = useMutation({
+    mutationFn: () =>
+      assignMenus(selectedRole!.id, companyId, { menuIds: selectedMenuIds }),
+    onSuccess: async (result) => {
+      toast.success(result.message);
+      setSelectedMenuIds([]);
+      await client.invalidateQueries({ queryKey: ['company-menus', companyId] });
+    },
+    onError: (error) => toast.error(errorText(error)),
+  });
+  const widgetAssignment = useMutation({
+    mutationFn: () =>
+      assignWidgets(selectedRole!.id, companyId, { widgetIds: selectedWidgetIds }),
+    onSuccess: async (result) => {
+      toast.success(result.message);
+      setSelectedWidgetIds([]);
+      await client.invalidateQueries({ queryKey: ['company-widgets', companyId] });
+    },
+    onError: (error) => toast.error(errorText(error)),
+  });
+  const selectRole = (value: string) => {
+    const roleId = value ? Number(value) : null;
+    setSelectedRoleId(roleId);
+    setSelectedMenuIds([]);
+    setSelectedWidgetIds([]);
+  };
+  const toggleMenu = (menuId: number) =>
+    setSelectedMenuIds((current) =>
+      current.includes(menuId)
+        ? current.filter((id) => id !== menuId)
+        : [...current, menuId],
+    );
+  const toggleWidget = (widgetId: number) =>
+    setSelectedWidgetIds((current) =>
+      current.includes(widgetId)
+        ? current.filter((id) => id !== widgetId)
+        : [...current, widgetId],
+    );
+
+  return (
+    <PermissionGate route="/admin/roles" permission="EDIT">
+      <section className="panel mt-5 p-5">
+        <div className="mb-5">
+          <p className="eyebrow">ROLE ACCESS</p>
+          <h2 className="text-xl font-semibold text-slate-900">Assign menus and widgets</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Select a role, choose the company resources, and assign them in bulk.
+          </p>
+        </div>
+        <label className="field max-w-md">
+          Role
+          <select value={selectedRoleId ?? ''} onChange={(event) => selectRole(event.target.value)}>
+            <option value="">Select a role</option>
+            {roles.map((role) => (
+              <option key={role.id} value={role.id}>
+                {role.roleName}
+              </option>
+            ))}
+          </select>
+        </label>
+        {!selectedRole ? (
+          <p className="notice mt-5">Select a role to load its available company menus and widgets.</p>
+        ) : (
+          <div className="mt-6 grid gap-6 xl:grid-cols-2">
+            <PermissionList
+              title="Menus"
+              description="Select the menus this role should have access to. Saving replaces the role's current menu assignments."
+              items={menus.data || []}
+              loading={menus.isPending}
+              error={menus.isError ? errorText(menus.error) : undefined}
+              selectedIds={selectedMenuIds}
+              getId={(menu) => menu.menuId}
+              getLabel={(menu) => menu.displayName}
+              onToggle={toggleMenu}
+              onRetry={() => menus.refetch()}
+              actionLabel={`Assign menus (${selectedMenuIds.length})`}
+              busy={menuAssignment.isPending}
+              disabled={!selectedMenuIds.length}
+              onAssign={() => menuAssignment.mutate()}
+            />
+            <PermissionList
+              title="Widgets"
+              description="Select the widgets this role should have access to. Saving replaces the role's current widget assignments."
+              items={widgets.data || []}
+              loading={widgets.isPending}
+              error={widgets.isError ? errorText(widgets.error) : undefined}
+              selectedIds={selectedWidgetIds}
+              getId={(widget) => widget.widgetId}
+              getLabel={(widget) => widget.widgetName}
+              onToggle={toggleWidget}
+              onRetry={() => widgets.refetch()}
+              actionLabel={`Assign widgets (${selectedWidgetIds.length})`}
+              busy={widgetAssignment.isPending}
+              disabled={!selectedWidgetIds.length}
+              onAssign={() => widgetAssignment.mutate()}
+            />
+          </div>
+        )}
+      </section>
+    </PermissionGate>
+  );
+}
+
+function PermissionList<T>({
+  title,
+  description,
+  items,
+  loading,
+  error,
+  selectedIds,
+  getId,
+  getLabel,
+  onToggle,
+  onRetry,
+  actionLabel,
+  busy,
+  disabled,
+  onAssign,
+}: {
+  title: string;
+  description: string;
+  items: T[];
+  loading: boolean;
+  error?: string;
+  selectedIds: number[];
+  getId: (item: T) => number;
+  getLabel: (item: T) => string;
+  onToggle: (id: number) => void;
+  onRetry: () => void;
+  actionLabel: string;
+  busy: boolean;
+  disabled: boolean;
+  onAssign: () => void;
+}) {
+  return (
+    <div className="border border-slate-200 p-4">
+      <div className="mb-4">
+        <h3 className="font-semibold text-slate-900">{title}</h3>
+        <p className="text-sm text-slate-500">{description}</p>
+      </div>
+      {loading ? (
+        <LoadingSkeleton />
+      ) : error ? (
+        <ErrorState message={error} retry={onRetry} />
+      ) : !items.length ? (
+        <EmptyState title={`No ${title.toLowerCase()} available`} />
+      ) : (
+        <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+          {items.map((item) => {
+            const id = getId(item);
+            return (
+              <label key={id} className="flex cursor-pointer items-start gap-3 border border-slate-100 p-3 hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(id)}
+                  onChange={() => onToggle(id)}
+                />
+                <span className="min-w-0">
+                  <span className="block font-medium text-slate-900">{getLabel(item)}</span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+      <Button className="mt-4" disabled={disabled || busy || loading || !!error} onClick={onAssign}>
+        {busy ? 'Assigning...' : actionLabel}
+      </Button>
+    </div>
+  );
+}
 
 function RoleForm({
   companyId,
@@ -274,6 +470,9 @@ export function RolePage() {
           </div>
         )}
       </section>
+      {roles.data?.length ? (
+        <RolePermissionPanel companyId={companyId} roles={roles.data} />
+      ) : null}
       <FormDialog
         open={formOpen}
         onOpenChange={(open) => { if (!open) closeForm(); }}
