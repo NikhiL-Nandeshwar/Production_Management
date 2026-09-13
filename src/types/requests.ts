@@ -29,6 +29,7 @@ export interface ComponentsCreateRequest {
   componentName: string;
   drawingNumber: string;
   unitOfMeasure: string;
+  cycleTimeMinutes: number;
   isActive: boolean;
 }
 export interface ComponentsUpdateRequest {
@@ -36,6 +37,7 @@ export interface ComponentsUpdateRequest {
   componentName: string;
   drawingNumber: string;
   unitOfMeasure: string;
+  cycleTimeMinutes: number;
   isActive: boolean;
 }
 

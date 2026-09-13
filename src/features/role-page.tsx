@@ -16,6 +16,8 @@ import {
   getRoles,
   toggleRoleActive,
   updateRole,
+  getRoleMenus,
+  getRoleWidgets,
 } from '@/lib/api/roles';
 import { assignMenus, assignWidgets } from '@/lib/api/roles';
 import { getMenus, getWidgets } from '@/lib/api/companies';
@@ -50,6 +52,8 @@ function RolePermissionPanel({
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
   const [selectedMenuIds, setSelectedMenuIds] = useState<number[]>([]);
   const [selectedWidgetIds, setSelectedWidgetIds] = useState<number[]>([]);
+  const [menuSelectionDirty, setMenuSelectionDirty] = useState(false);
+  const [widgetSelectionDirty, setWidgetSelectionDirty] = useState(false);
   const selectedRole = roles.find((role) => role.id === selectedRoleId) || null;
   const menus = useQuery({
     queryKey: ['company-menus', companyId],
@@ -61,23 +65,45 @@ function RolePermissionPanel({
     queryFn: () => getWidgets(companyId),
     enabled: selectedRole !== null,
   });
+  const roleMenus = useQuery({
+    queryKey: ['role-menus', companyId, selectedRoleId],
+    queryFn: () => getRoleMenus(selectedRoleId!, companyId),
+    enabled: selectedRoleId !== null,
+  });
+  const roleWidgets = useQuery({
+    queryKey: ['role-widgets', companyId, selectedRoleId],
+    queryFn: () => getRoleWidgets(selectedRoleId!, companyId),
+    enabled: selectedRoleId !== null,
+  });
+  const persistedMenuIds =
+    roleMenus.data?.filter((menu) => menu.isVisible).map((menu) => menu.menuId) || [];
+  const persistedWidgetIds =
+    roleWidgets.data?.filter((widget) => widget.isVisible).map((widget) => widget.widgetId) || [];
+  const visibleMenuIds = menuSelectionDirty ? selectedMenuIds : persistedMenuIds;
+  const visibleWidgetIds = widgetSelectionDirty ? selectedWidgetIds : persistedWidgetIds;
   const menuAssignment = useMutation({
-    mutationFn: () =>
-      assignMenus(selectedRole!.id, companyId, { menuIds: selectedMenuIds }),
-    onSuccess: async (result) => {
+    mutationFn: (variables: { roleId: number; menuIds: number[] }) =>
+      assignMenus(variables.roleId, companyId, { menuIds: variables.menuIds }),
+    onSuccess: async (result, variables) => {
       toast.success(result.message);
-      setSelectedMenuIds([]);
-      await client.invalidateQueries({ queryKey: ['company-menus', companyId] });
+      if (selectedRoleId === variables.roleId) {
+        await roleMenus.refetch();
+        setMenuSelectionDirty(false);
+        await client.invalidateQueries({ queryKey: ['company-menus', companyId] });
+      }
     },
     onError: (error) => toast.error(errorText(error)),
   });
   const widgetAssignment = useMutation({
-    mutationFn: () =>
-      assignWidgets(selectedRole!.id, companyId, { widgetIds: selectedWidgetIds }),
-    onSuccess: async (result) => {
+    mutationFn: (variables: { roleId: number; widgetIds: number[] }) =>
+      assignWidgets(variables.roleId, companyId, { widgetIds: variables.widgetIds }),
+    onSuccess: async (result, variables) => {
       toast.success(result.message);
-      setSelectedWidgetIds([]);
-      await client.invalidateQueries({ queryKey: ['company-widgets', companyId] });
+      if (selectedRoleId === variables.roleId) {
+        await roleWidgets.refetch();
+        setWidgetSelectionDirty(false);
+        await client.invalidateQueries({ queryKey: ['company-widgets', companyId] });
+      }
     },
     onError: (error) => toast.error(errorText(error)),
   });
@@ -86,19 +112,27 @@ function RolePermissionPanel({
     setSelectedRoleId(roleId);
     setSelectedMenuIds([]);
     setSelectedWidgetIds([]);
+    setMenuSelectionDirty(false);
+    setWidgetSelectionDirty(false);
   };
-  const toggleMenu = (menuId: number) =>
-    setSelectedMenuIds((current) =>
-      current.includes(menuId)
-        ? current.filter((id) => id !== menuId)
-        : [...current, menuId],
-    );
-  const toggleWidget = (widgetId: number) =>
-    setSelectedWidgetIds((current) =>
-      current.includes(widgetId)
-        ? current.filter((id) => id !== widgetId)
-        : [...current, widgetId],
-    );
+  const toggleMenu = (menuId: number) => {
+    setMenuSelectionDirty(true);
+    setSelectedMenuIds((current) => {
+      const visible = menuSelectionDirty ? current : persistedMenuIds;
+      return visible.includes(menuId)
+        ? visible.filter((id) => id !== menuId)
+        : [...visible, menuId];
+    });
+  };
+  const toggleWidget = (widgetId: number) => {
+    setWidgetSelectionDirty(true);
+    setSelectedWidgetIds((current) => {
+      const visible = widgetSelectionDirty ? current : persistedWidgetIds;
+      return visible.includes(widgetId)
+        ? visible.filter((id) => id !== widgetId)
+        : [...visible, widgetId];
+    });
+  };
 
   return (
     <PermissionGate route="/admin/roles" permission="EDIT">
@@ -129,33 +163,33 @@ function RolePermissionPanel({
               title="Menus"
               description="Select the menus this role should have access to. Saving replaces the role's current menu assignments."
               items={menus.data || []}
-              loading={menus.isPending}
-              error={menus.isError ? errorText(menus.error) : undefined}
-              selectedIds={selectedMenuIds}
+              loading={menus.isPending || roleMenus.isPending}
+              error={menus.isError ? errorText(menus.error) : roleMenus.isError ? errorText(roleMenus.error) : undefined}
+              selectedIds={visibleMenuIds}
               getId={(menu) => menu.menuId}
               getLabel={(menu) => menu.displayName}
               onToggle={toggleMenu}
               onRetry={() => menus.refetch()}
-              actionLabel={`Assign menus (${selectedMenuIds.length})`}
+              actionLabel={`Assign menus (${visibleMenuIds.length})`}
               busy={menuAssignment.isPending}
-              disabled={!selectedMenuIds.length}
-              onAssign={() => menuAssignment.mutate()}
+              disabled={!visibleMenuIds.length}
+              onAssign={() => menuAssignment.mutate({ roleId: selectedRole.id, menuIds: visibleMenuIds })}
             />
             <PermissionList
               title="Widgets"
               description="Select the widgets this role should have access to. Saving replaces the role's current widget assignments."
               items={widgets.data || []}
-              loading={widgets.isPending}
-              error={widgets.isError ? errorText(widgets.error) : undefined}
-              selectedIds={selectedWidgetIds}
+              loading={widgets.isPending || roleWidgets.isPending}
+              error={widgets.isError ? errorText(widgets.error) : roleWidgets.isError ? errorText(roleWidgets.error) : undefined}
+              selectedIds={visibleWidgetIds}
               getId={(widget) => widget.widgetId}
               getLabel={(widget) => widget.widgetName}
               onToggle={toggleWidget}
               onRetry={() => widgets.refetch()}
-              actionLabel={`Assign widgets (${selectedWidgetIds.length})`}
+              actionLabel={`Assign widgets (${visibleWidgetIds.length})`}
               busy={widgetAssignment.isPending}
-              disabled={!selectedWidgetIds.length}
-              onAssign={() => widgetAssignment.mutate()}
+              disabled={!visibleWidgetIds.length}
+              onAssign={() => widgetAssignment.mutate({ roleId: selectedRole.id, widgetIds: visibleWidgetIds })}
             />
           </div>
         )}
@@ -288,8 +322,9 @@ function RoleForm({
     },
     onSuccess: async (result) => {
       toast.success(result.message);
-      await client.invalidateQueries({ queryKey: ['roles', companyId] });
+      onBusyChange(false);
       onDone();
+      await client.invalidateQueries({ queryKey: ['roles', companyId] });
     },
     onError: (error) => {
       setFormError(errorText(error));
@@ -339,7 +374,7 @@ function RoleForm({
           Cancel
         </Button>
         <Button type="submit" disabled={save.isPending}>
-          {save.isPending ? 'Savingâ€¦' : roleId === null ? 'Create role' : 'Save changes'}
+          {save.isPending ? 'Saving..' : roleId === null ? 'Create role' : 'Save changes'}
         </Button>
       </div>
     </form>
@@ -442,7 +477,7 @@ export function RolePage() {
                 {roles.data.map((role) => (
                   <tr key={role.id}>
                     <td className="font-medium text-slate-900">{role.roleName}</td>
-                    <td>{role.description || 'â€”'}</td>
+                    <td>{role.description || ''}</td>
                     <td>
                       <span className="badge">{role.isSystemRole ? 'System' : 'Custom'}</span>
                     </td>
@@ -483,7 +518,10 @@ export function RolePage() {
           <RoleForm
             companyId={companyId}
             roleId={editingId}
-            onDone={closeForm}
+            onDone={() => {
+              setFormOpen(false);
+              setEditingId(null);
+            }}
             onBusyChange={setFormBusy}
           />
         )}

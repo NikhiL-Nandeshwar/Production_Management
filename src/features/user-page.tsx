@@ -127,8 +127,9 @@ function UserForm({
     },
     onSuccess: async (result) => {
       toast.success(result.message);
-      await client.invalidateQueries({ queryKey: ['users', companyId] });
+      onBusyChange(false);
       onDone();
+      await client.invalidateQueries({ queryKey: ['users', companyId] });
     },
     onError: (error) => {
       setFormError(errorText(error));
@@ -373,7 +374,10 @@ export function UserPage() {
             userId={editingId}
             roles={roles.data || []}
             rolesLoading={roles.isPending || roles.isError}
-            onDone={closeForm}
+            onDone={() => {
+              setFormOpen(false);
+              setEditingId(null);
+            }}
             onBusyChange={setFormBusy}
           />
         )}

@@ -12,6 +12,14 @@ export interface ResourceConfig {
   createUrl: string | null;
   fields: FieldConfig[];
 }
+const routeAliases: Record<string, string> = {
+  '/shifts': '/masters/shifts',
+  '/machines': '/masters/machines',
+  '/components': '/masters/components',
+};
+export function normalizeResourceRoute(route: string) {
+  return routeAliases[route] || route;
+}
 export const resources: ResourceConfig[] = [
   {
     key: 'shifts',

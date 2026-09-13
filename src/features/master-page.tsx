@@ -47,6 +47,7 @@ type MasterFormValues = {
   componentName?: string;
   drawingNumber?: string;
   unitOfMeasure?: string;
+  cycleTimeMinutes?: number;
   isActive: boolean;
 };
 
@@ -70,6 +71,7 @@ const schemas = {
     componentName: z.string().trim().min(1, 'Enter a component name'),
     drawingNumber: z.string().trim().min(1, 'Enter a drawing number'),
     unitOfMeasure: z.string().trim().min(1, 'Enter a unit of measure'),
+    cycleTimeMinutes: z.number().finite().min(0, 'Cycle time cannot be negative'),
     isActive: z.boolean(),
   }),
 };
@@ -175,6 +177,7 @@ function MasterForm({
         componentName: values.componentName!,
         drawingNumber: values.drawingNumber!,
         unitOfMeasure: values.unitOfMeasure!,
+        cycleTimeMinutes: values.cycleTimeMinutes!,
         isActive: values.isActive,
       } satisfies ComponentsCreateRequest;
       if (editingId === null) return componentApi.create(companyId, createPayload);
@@ -183,14 +186,16 @@ function MasterForm({
         componentName: values.componentName!,
         drawingNumber: values.drawingNumber!,
         unitOfMeasure: values.unitOfMeasure!,
+        cycleTimeMinutes: values.cycleTimeMinutes!,
         isActive: values.isActive,
       } satisfies ComponentsUpdateRequest;
       return componentApi.update(companyId, updatePayload);
     },
     onSuccess: async (result) => {
       toast.success(result.message);
-      await client.invalidateQueries({ queryKey: [kind, companyId] });
+      onBusyChange(false);
       onDone();
+      await client.invalidateQueries({ queryKey: [kind, companyId] });
     },
     onError: (error) => {
       setFormError(errorText(error));
@@ -251,6 +256,7 @@ function MasterForm({
           {field('componentName', 'Component name')}
           {field('drawingNumber', 'Drawing number')}
           {field('unitOfMeasure', 'Unit of measure')}
+          {field('cycleTimeMinutes', 'Cycle time (minutes)', 'number')}
         </>}
       </div>
       <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
@@ -316,18 +322,18 @@ export function MasterPage({ kind }: { kind: MasterKind }) {
       </div>
       {list.isPending ? <LoadingSkeleton /> : list.isError ? <ErrorState message={errorText(list.error)} retry={() => list.refetch()} /> : !list.data?.length ? <EmptyState title={`No ${kind} found`} description={`Create the first ${kind.slice(0, -1)} for this company workspace.`} /> :
         <div className="overflow-x-auto"><table><thead><tr>
-          <th>Name</th>{kind === 'shifts' && <><th>Start</th><th>End</th><th>Break</th></>}{kind === 'machines' && <><th>Code</th><th>Type</th><th>Location</th></>}{kind === 'components' && <><th>Code</th><th>Drawing</th><th>Unit</th></>}<th>Status</th><th className="no-print">Actions</th>
+          <th>Name</th>{kind === 'shifts' && <><th>Start</th><th>End</th><th>Break</th></>}{kind === 'machines' && <><th>Code</th><th>Type</th><th>Location</th></>}{kind === 'components' && <><th>Code</th><th>Drawing</th><th>Unit</th><th>Cycle time</th></>}<th>Status</th><th className="no-print">Actions</th>
         </tr></thead><tbody>{list.data.map((row) => <tr key={row.id}>
           <td className="font-medium text-slate-900">{rowName(kind, row)}</td>
           {kind === 'shifts' && <><td>{(row as Shift).startTime}</td><td>{(row as Shift).endTime}</td><td>{(row as Shift).breakMinutes}</td></>}
           {kind === 'machines' && <><td>{(row as Machine).machineCode}</td><td>{(row as Machine).machineType}</td><td>{(row as Machine).location}</td></>}
-          {kind === 'components' && <><td>{(row as Component).componentCode}</td><td>{(row as Component).drawingNumber}</td><td>{(row as Component).unitOfMeasure}</td></>}
-          <td><StatusBadge value={row.isActive} /></td><td className="no-print"><div className="flex flex-wrap gap-2"><PermissionGate route={`/masters/${kind}`} permission="EDIT"><Button variant="outline" size="sm" onClick={() => openEdit(row)}><Pencil size={14} /> Edit</Button>{kind !== 'components' && <Button variant="outline" size="sm" onClick={() => setToggleTarget(row)}><Power size={14} /> Toggle</Button>}</PermissionGate></div></td>
+          {kind === 'components' && <><td>{(row as Component).componentCode}</td><td>{(row as Component).drawingNumber}</td><td>{(row as Component).unitOfMeasure}</td><td>{(row as Component).cycleTimeMinutes} min</td></>}
+          <td><StatusBadge value={row.isActive} /></td><td className="no-print"><div className="flex flex-wrap gap-2"><PermissionGate route={`/masters/${kind}`} permission="EDIT"><Button variant="outline" size="sm" onClick={() => openEdit(row)}><Pencil size={14} /> Edit</Button><Button variant="outline" size="sm" disabled={kind === 'components'} title={kind === 'components' ? 'Component status changes are not available yet.' : undefined} onClick={() => { if (kind !== 'components') setToggleTarget(row); }}><Power size={14} /> {row.isActive ? 'Deactivate' : 'Activate'}</Button></PermissionGate></div></td>
         </tr>)}</tbody></table></div>}
     </section>
     <FormDialog open={formOpen} onOpenChange={(open) => !open && closeForm()} title={`${editingId === null ? 'Add' : 'Edit'} ${kind.slice(0, -1)}`} description={details[kind]}>
-      <MasterForm kind={kind} companyId={companyId} editingId={editingId} onDone={closeForm} onBusyChange={setFormBusy} />
+      <MasterForm kind={kind} companyId={companyId} editingId={editingId} onDone={() => { setFormOpen(false); setEditingId(null); }} onBusyChange={setFormBusy} />
     </FormDialog>
-    <ConfirmDialog open={!!toggleTarget} title={toggleTarget ? `Toggle ${rowName(kind, toggleTarget)}?` : 'Toggle record?'} description="This changes the active status in your company's backend." busy={toggle.isPending} onCancel={() => setToggleTarget(null)} onConfirm={() => !toggle.isPending && toggle.mutate()} />
+    <ConfirmDialog open={!!toggleTarget} title={toggleTarget ? `${toggleTarget.isActive ? 'Deactivate' : 'Activate'} ${rowName(kind, toggleTarget)}?` : 'Change record status?'} description="This changes the active status in your company's backend." busy={toggle.isPending} onCancel={() => setToggleTarget(null)} onConfirm={() => !toggle.isPending && toggle.mutate()} />
   </>;
 }

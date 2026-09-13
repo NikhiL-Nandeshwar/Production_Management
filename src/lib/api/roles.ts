@@ -47,6 +47,30 @@ export const updateRole = (companyId: number, payload: RoleUpdateRequest) =>
 export const toggleRoleActive = (id: number, companyId: number) =>
   mutation('PATCH', `/Roles/${id}/toggle-active`, undefined, { companyId });
 
+export async function getRoleMenus(
+  id: number,
+  companyId: number,
+): Promise<AssignedMenu[]> {
+  const data = await request<unknown>('GET', `/Roles/${id}/Menus`, undefined, {
+    companyId,
+  });
+  if (!Array.isArray(data))
+    throw new ApiError('The role menu assignment response is invalid.');
+  return data.map(decodeAssignedMenu);
+}
+
+export async function getRoleWidgets(
+  id: number,
+  companyId: number,
+): Promise<AssignedWidget[]> {
+  const data = await request<unknown>('GET', `/Roles/${id}/Widgets`, undefined, {
+    companyId,
+  });
+  if (!Array.isArray(data))
+    throw new ApiError('The role widget assignment response is invalid.');
+  return data.map(decodeAssignedWidget);
+}
+
 function decodeAssignedMenu(value: unknown): AssignedMenu {
   if (!value || typeof value !== 'object' || Array.isArray(value))
     throw new ApiError('The assigned menu response returned an unsupported format.');

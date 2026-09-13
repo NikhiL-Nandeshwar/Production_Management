@@ -17,6 +17,9 @@ function decodeComponent(value: unknown): Component {
 		typeof component.componentName !== 'string' ||
 		typeof component.drawingNumber !== 'string' ||
 		typeof component.unitOfMeasure !== 'string' ||
+		typeof component.cycleTimeMinutes !== 'number' ||
+		!Number.isFinite(component.cycleTimeMinutes) ||
+		component.cycleTimeMinutes < 0 ||
 		 typeof component.isActive !== 'boolean' ||
 		 typeof component.createdAt !== 'string'
 	)

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useUIStore } from '@/stores/ui-store';
+import { normalizeResourceRoute } from '@/config/resources';
 import { safeRoute, flattenMenus } from '@/hooks/use-permission';
 import { ApiIcon } from '@/components/icons/icon-resolver';
 import type { SidebarMenu } from '@/types/api';
@@ -23,11 +24,14 @@ function MenuItem({
   onNavigate: () => void;
 }) {
   const path = usePathname();
+  const menuRoute = menu.route ? normalizeResourceRoute(menu.route) : null;
   const superadmin = useAuthStore((s) => s.session?.isSuperAdmin);
   if (menu.route?.startsWith('/superadmin') && !superadmin) return null;
   const children = Array.isArray(menu.children) ? menu.children : [];
-  const active = path === menu.route;
-  const descendant = flattenMenus(children).some((m) => m.route === path);
+  const active = path === menuRoute;
+  const descendant = flattenMenus(children).some(
+    (m) => normalizeResourceRoute(m.route || '') === path,
+  );
   const content = (
     <>
       <ApiIcon name={menu.icon} />
@@ -45,11 +49,11 @@ function MenuItem({
             {content}
             <ChevronDown size={14} className="ml-auto" />
           </summary>
-          {safeRoute(menu.route) && (
+          {safeRoute(menuRoute) && (
             <Link
               onClick={onNavigate}
               className={`nav-item ${active ? 'active' : ''}`}
-              href={menu.route}
+              href={menuRoute}
             >
               {menu.displayName}
             </Link>
@@ -69,13 +73,13 @@ function MenuItem({
               ))}
           </ul>
         </details>
-      ) : safeRoute(menu.route) ? (
+      ) : safeRoute(menuRoute) ? (
         <Link
           title={menu.displayName}
           aria-current={active ? 'page' : undefined}
           onClick={onNavigate}
           className={`nav-item ${active ? 'active' : ''}`}
-          href={menu.route}
+          href={menuRoute}
         >
           {content}
         </Link>
