@@ -47,7 +47,7 @@ type MasterFormValues = {
   componentName?: string;
   drawingNumber?: string;
   unitOfMeasure?: string;
-  cycleTimeMinutes?: number;
+  cycleTimeMinutes?: number | null;
   isActive: boolean;
 };
 
@@ -134,7 +134,13 @@ function MasterForm({
 
   useEffect(() => {
     const value = detail.data;
-    if (value) reset({ ...value });
+    if (value)
+      reset({
+        ...value,
+        ...(kind === 'components'
+          ? { cycleTimeMinutes: (value as Component).cycleTimeMinutes ?? undefined }
+          : {}),
+      });
     else if (editingId === null) reset(defaults(kind));
   }, [detail.data, editingId, kind, reset]);
 
@@ -327,7 +333,7 @@ export function MasterPage({ kind }: { kind: MasterKind }) {
           <td className="font-medium text-slate-900">{rowName(kind, row)}</td>
           {kind === 'shifts' && <><td>{(row as Shift).startTime}</td><td>{(row as Shift).endTime}</td><td>{(row as Shift).breakMinutes}</td></>}
           {kind === 'machines' && <><td>{(row as Machine).machineCode}</td><td>{(row as Machine).machineType}</td><td>{(row as Machine).location}</td></>}
-          {kind === 'components' && <><td>{(row as Component).componentCode}</td><td>{(row as Component).drawingNumber}</td><td>{(row as Component).unitOfMeasure}</td><td>{(row as Component).cycleTimeMinutes} min</td></>}
+          {kind === 'components' && <><td>{(row as Component).componentCode}</td><td>{(row as Component).drawingNumber}</td><td>{(row as Component).unitOfMeasure}</td><td>{(row as Component).cycleTimeMinutes == null ? '-' : `${(row as Component).cycleTimeMinutes} min`}</td></>}
           <td><StatusBadge value={row.isActive} /></td><td className="no-print"><div className="flex flex-wrap gap-2"><PermissionGate route={`/masters/${kind}`} permission="EDIT"><Button variant="outline" size="sm" onClick={() => openEdit(row)}><Pencil size={14} /> Edit</Button><Button variant="outline" size="sm" disabled={kind === 'components'} title={kind === 'components' ? 'Component status changes are not available yet.' : undefined} onClick={() => { if (kind !== 'components') setToggleTarget(row); }}><Power size={14} /> {row.isActive ? 'Deactivate' : 'Activate'}</Button></PermissionGate></div></td>
         </tr>)}</tbody></table></div>}
     </section>

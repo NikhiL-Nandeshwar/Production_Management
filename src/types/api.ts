@@ -122,7 +122,7 @@ export interface Component {
   componentName: string;
   drawingNumber: string;
   unitOfMeasure: string;
-  cycleTimeMinutes: number;
+  cycleTimeMinutes: number | null;
   isActive: boolean;
   createdAt: string;
 }

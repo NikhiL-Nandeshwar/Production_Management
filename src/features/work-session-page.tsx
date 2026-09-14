@@ -86,7 +86,7 @@ export function WorkSessionPage() {
     (component) => String(component.id) === componentId,
   );
   const selectedShift = shifts.data?.find((shift) => String(shift.id) === shiftId);
-  const cycleTime = selectedComponent?.cycleTimeMinutes ?? 0;
+  const cycleTime = selectedComponent?.cycleTimeMinutes ?? null;
   const shiftDuration = selectedShift
     ? timeDuration(selectedShift.startTime.slice(0, 5), selectedShift.endTime.slice(0, 5))
     : 0;
@@ -97,7 +97,8 @@ export function WorkSessionPage() {
     nonNegative(rework) +
     nonNegative(machiningRejection) +
     nonNegative(castingRejection);
-  const idealQty = cycleTime > 0 ? availableProductionTime / cycleTime : 0;
+  const idealQty =
+    cycleTime !== null && cycleTime > 0 ? availableProductionTime / cycleTime : 0;
   const efficiency = idealQty > 0 ? (totalQty / idealQty) * 100 : 0;
   const machineLossMinutes = Object.values(losses).reduce(
     (total, loss) => total + (loss.enabled ? nonNegative(loss.minutes) : 0),
@@ -105,7 +106,9 @@ export function WorkSessionPage() {
   );
   const overtimeMinutesTotal = nonNegative(overtimeHours) * 60 + nonNegative(overtimeMinutes);
   const finalActualWorkHours =
-    (totalQty * cycleTime + machineLossMinutes + overtimeMinutesTotal) / 60;
+    cycleTime !== null && cycleTime > 0
+      ? (totalQty * cycleTime + machineLossMinutes + overtimeMinutesTotal) / 60
+      : Number.NaN;
   const updateLoss = (key: keyof typeof losses, update: Partial<(typeof losses)[typeof key]>) =>
     setLosses((current) => ({ ...current, [key]: { ...current[key], ...update } }));
 
@@ -193,7 +196,7 @@ export function WorkSessionPage() {
               <label className="field">
                 Cycle Time
                 <input
-                  value={cycleTime > 0 ? `${cycleTime} minutes` : 'Not available'}
+                  value={cycleTime == null ? 'Not available' : `${cycleTime} minutes`}
                   readOnly
                   aria-readonly="true"
                 />
@@ -262,7 +265,7 @@ export function WorkSessionPage() {
         <div className="mt-6 border border-teal-100 bg-teal-50 p-4">
           <p className="eyebrow">WORK SESSION SUMMARY</p>
           <div className="mt-4 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            <CalculatedField label="Cycle Time" value={cycleTime > 0 ? displayNumber(cycleTime, ' min') : 'Not available'} />
+            <CalculatedField label="Cycle Time" value={cycleTime == null ? 'Not available' : displayNumber(cycleTime, ' min')} />
             <CalculatedField label="Ideal Qty" value={idealQty > 0 ? displayNumber(idealQty, ' Nos.') : '—'} />
             <CalculatedField label="Total Qty" value={displayNumber(totalQty, ' Nos.')} />
             <CalculatedField label="Efficiency" value={idealQty > 0 ? displayNumber(efficiency, '%') : '—'} />
