@@ -378,6 +378,6 @@ export function MasterPage({ kind }: { kind: MasterKind }) {
     <FormDialog open={formOpen} onOpenChange={(open) => !open && closeForm()} title={`${editingId === null ? 'Add' : 'Edit'} ${singularTitles[kind]}`} description={details[kind]}>
       <MasterForm kind={kind} companyId={companyId} editingId={editingId} onDone={() => { setFormOpen(false); setEditingId(null); }} onBusyChange={setFormBusy} />
     </FormDialog>
-    <ConfirmDialog open={!!toggleTarget} title={toggleTarget ? `${toggleTarget.isActive ? 'Deactivate' : 'Activate'} ${rowName(kind, toggleTarget)}?` : 'Change record status?'} description={toggleTarget ? `This will ${toggleTarget.isActive ? 'deactivate' : 'activate'} ${rowName(kind, toggleTarget)}${toggleTarget.isActive ? '. It will no longer be available for new use.' : ' and make it available for use.'}` : undefined} busy={toggle.isPending} onCancel={() => setToggleTarget(null)} onConfirm={() => !toggle.isPending && toggle.mutate()} />
+    <ConfirmDialog open={!!toggleTarget} title={toggleTarget ? `${toggleTarget.isActive ? 'Deactivate' : 'Activate'} ${rowName(kind, toggleTarget)}?` : 'Change record status?'} description={toggleTarget ? `This will ${toggleTarget.isActive ? 'deactivate' : 'activate'} ${rowName(kind, toggleTarget)}${toggleTarget.isActive ? '. It will no longer be available for new use.' : ' and make it available for use.'}` : 'Change the record status.'} busy={toggle.isPending} onCancel={() => setToggleTarget(null)} onConfirm={() => !toggle.isPending && toggle.mutate()} />
   </>;
 }

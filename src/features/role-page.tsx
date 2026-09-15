@@ -529,7 +529,7 @@ export function RolePage() {
       <ConfirmDialog
         open={!!toggleTarget}
         title={`${toggleTarget?.isActive ? 'Deactivate' : 'Activate'} ${toggleTarget?.roleName || 'role'}?`}
-        description={toggleTarget ? `This will ${toggleTarget.isActive ? 'deactivate' : 'activate'} ${toggleTarget.roleName}${toggleTarget.isActive ? '. It will no longer be available for new use.' : ' and make it available for use.'}` : undefined}
+        description={toggleTarget ? `This will ${toggleTarget.isActive ? 'deactivate' : 'activate'} ${toggleTarget.roleName}${toggleTarget.isActive ? '. It will no longer be available for new use.' : ' and make it available for use.'}` : 'Change the role status.'}
         busy={toggle.isPending}
         onCancel={() => setToggleTarget(null)}
         onConfirm={() => { if (!toggle.isPending) toggle.mutate(); }}
