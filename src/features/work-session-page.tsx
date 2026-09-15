@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import * as shiftApi from '@/lib/api/shifts';
 import * as machineApi from '@/lib/api/machines';
 import * as componentApi from '@/lib/api/components';
+import * as downtimeCategoryApi from '@/lib/api/downtime-categories';
 import { errorText } from '@/lib/api/errors';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,6 +40,8 @@ function displayNumber(value: number, suffix = '') {
   return Number.isFinite(value) ? `${value.toFixed(2).replace(/\.00$/, '')}${suffix}` : '—';
 }
 
+type DowntimeState = { enabled: boolean; minutes: string };
+
 export function WorkSessionPage() {
   const session = useAuthStore((state) => state.session);
   const companyId = session?.companyId;
@@ -55,13 +58,7 @@ export function WorkSessionPage() {
   const [castingRejection, setCastingRejection] = useState('0');
   const [overtimeHours, setOvertimeHours] = useState('0');
   const [overtimeMinutes, setOvertimeMinutes] = useState('0');
-  const [losses, setLosses] = useState({
-    machineBreakdown: { enabled: false, minutes: '0' },
-    powerOff: { enabled: false, minutes: '0' },
-    noLoad: { enabled: false, minutes: '0' },
-    setting: { enabled: false, minutes: '0' },
-    unloading: { enabled: false, minutes: '0' },
-  });
+  const [downtime, setDowntime] = useState<Record<number, DowntimeState>>({});
   const validCompanyId =
     !!session && typeof companyId === 'number' && companyId > 0;
   const shifts = useQuery({
@@ -79,8 +76,18 @@ export function WorkSessionPage() {
     queryFn: () => componentApi.getAll(companyId!),
     enabled: validCompanyId,
   });
-  const lookupError = shifts.error || machines.error || components.error;
-  const lookupLoading = shifts.isPending || machines.isPending || components.isPending;
+  const downtimeCategories = useQuery({
+    queryKey: ['work-session-downtime-categories', companyId],
+    queryFn: () => downtimeCategoryApi.getAll(companyId!, true),
+    enabled: validCompanyId,
+  });
+  const lookupError =
+    shifts.error || machines.error || components.error || downtimeCategories.error;
+  const lookupLoading =
+    shifts.isPending ||
+    machines.isPending ||
+    components.isPending ||
+    downtimeCategories.isPending;
   const canStart = Boolean(workDate && shiftId && machineId && componentId && startTime);
   const selectedComponent = components.data?.find(
     (component) => String(component.id) === componentId,
@@ -100,17 +107,23 @@ export function WorkSessionPage() {
   const idealQty =
     cycleTime !== null && cycleTime > 0 ? availableProductionTime / cycleTime : 0;
   const efficiency = idealQty > 0 ? (totalQty / idealQty) * 100 : 0;
-  const machineLossMinutes = Object.values(losses).reduce(
-    (total, loss) => total + (loss.enabled ? nonNegative(loss.minutes) : 0),
+  const totalDowntimeMinutes = (downtimeCategories.data ?? []).reduce(
+    (total, category) => {
+      const value = downtime[category.id];
+      return total + (value?.enabled ? nonNegative(value.minutes) : 0);
+    },
     0,
   );
   const overtimeMinutesTotal = nonNegative(overtimeHours) * 60 + nonNegative(overtimeMinutes);
   const finalActualWorkHours =
     cycleTime !== null && cycleTime > 0
-      ? (totalQty * cycleTime + machineLossMinutes + overtimeMinutesTotal) / 60
+      ? (totalQty * cycleTime + totalDowntimeMinutes + overtimeMinutesTotal) / 60
       : Number.NaN;
-  const updateLoss = (key: keyof typeof losses, update: Partial<(typeof losses)[typeof key]>) =>
-    setLosses((current) => ({ ...current, [key]: { ...current[key], ...update } }));
+  const updateDowntime = (id: number, update: Partial<DowntimeState>) =>
+    setDowntime((current) => ({
+      ...current,
+      [id]: { ...(current[id] ?? { enabled: false, minutes: '0' }), ...update },
+    }));
 
   if (!validCompanyId)
     return (
@@ -152,6 +165,7 @@ export function WorkSessionPage() {
                 void shifts.refetch();
                 void machines.refetch();
                 void components.refetch();
+                void downtimeCategories.refetch();
               }}
             />
           ) : (
@@ -243,13 +257,16 @@ export function WorkSessionPage() {
           </div>
         </div>
         <div className="mt-6 border border-slate-200 p-4">
-          <h3 className="font-semibold text-slate-900">Machine / Time</h3>
+          <h3 className="font-semibold text-slate-900">Down Time</h3>
           <div className="mt-4 space-y-3">
-            <LossField label="Machine Breakdown" value={losses.machineBreakdown} onChange={(update) => updateLoss('machineBreakdown', update)} />
-            <LossField label="Power Off" value={losses.powerOff} onChange={(update) => updateLoss('powerOff', update)} />
-            <LossField label="No Load" value={losses.noLoad} onChange={(update) => updateLoss('noLoad', update)} />
-            <LossField label="Setting" value={losses.setting} onChange={(update) => updateLoss('setting', update)} />
-            <LossField label="Unloading" value={losses.unloading} onChange={(update) => updateLoss('unloading', update)} />
+            {downtimeCategories.data?.map((category) => (
+              <LossField
+                key={category.id}
+                label={category.categoryName}
+                value={downtime[category.id] ?? { enabled: false, minutes: '0' }}
+                onChange={(update) => updateDowntime(category.id, update)}
+              />
+            ))}
           </div>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             <label className="field">

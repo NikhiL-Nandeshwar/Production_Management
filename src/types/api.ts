@@ -126,6 +126,13 @@ export interface Component {
   isActive: boolean;
   createdAt: string;
 }
+export interface DowntimeCategory {
+  id: number;
+  companyId: number;
+  categoryName: string;
+  isActive: boolean;
+  createdAt: string;
+}
 export type ActionPermission =
   | 'VIEW'
   | 'ADD'

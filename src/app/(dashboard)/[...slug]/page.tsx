@@ -23,7 +23,8 @@ export default async function ModulePage({
   if (
     resource.key === 'shifts' ||
     resource.key === 'machines' ||
-    resource.key === 'components'
+    resource.key === 'components' ||
+    resource.key === 'downtime-categories'
   )
     return <MasterPage kind={resource.key} />;
   return <ResourcePage key={resource.key} resource={resource} />;

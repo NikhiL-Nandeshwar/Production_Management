@@ -21,7 +21,13 @@ export default function LoginPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<z.infer<typeof schema>>({ resolver: zodResolver(schema) });
+  } = useForm<z.infer<typeof schema>>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      username: 'User',
+      password: '123456',
+    },
+  });
   return (
     <main className="login-grid">
       <section className="login-story">

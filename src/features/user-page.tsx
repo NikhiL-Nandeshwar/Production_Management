@@ -385,7 +385,7 @@ export function UserPage() {
       <ConfirmDialog
         open={!!toggleTarget}
         title={`${toggleTarget?.isActive ? 'Deactivate' : 'Activate'} ${toggleTarget?.displayName || 'user'}?`}
-        description={`This will ${toggleTarget?.isActive ? 'deactivate' : 'activate'} the selected user in this company workspace.`}
+        description={toggleTarget ? `This will ${toggleTarget.isActive ? 'deactivate' : 'activate'} ${toggleTarget.displayName}${toggleTarget.isActive ? '. It will no longer be available for new use.' : ' and make it available for use.'}` : undefined}
         busy={toggle.isPending}
         onCancel={() => setToggleTarget(null)}
         onConfirm={() => { if (!toggle.isPending) toggle.mutate(); }}

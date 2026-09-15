@@ -7,10 +7,12 @@ import { z } from 'zod';
 import { Pencil, Plus, Power, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/auth-store';
-import type { Component, Machine, Shift } from '@/types/api';
+import type { Component, DowntimeCategory, Machine, Shift } from '@/types/api';
 import type {
   ComponentsCreateRequest,
   ComponentsUpdateRequest,
+  DowntimeCategoriesCreateRequest,
+  DowntimeCategoriesUpdateRequest,
   MachinesCreateRequest,
   MachinesUpdateRequest,
   ShiftsCreateRequest,
@@ -19,6 +21,7 @@ import type {
 import * as shiftApi from '@/lib/api/shifts';
 import * as machineApi from '@/lib/api/machines';
 import * as componentApi from '@/lib/api/components';
+import * as downtimeCategoryApi from '@/lib/api/downtime-categories';
 import { ApiError, errorText } from '@/lib/api/errors';
 import { Button } from '@/components/ui/button';
 import { FormDialog } from '@/components/ui/dialog';
@@ -31,8 +34,8 @@ import {
 } from '@/components/common/states';
 import { PermissionGate } from '@/components/common/gates';
 
-type MasterKind = 'shifts' | 'machines' | 'components';
-type MasterRow = Shift | Machine | Component;
+type MasterKind = 'shifts' | 'machines' | 'components' | 'downtime-categories';
+type MasterRow = Shift | Machine | Component | DowntimeCategory;
 type MasterFormValues = {
   id?: number;
   shiftName?: string;
@@ -48,6 +51,7 @@ type MasterFormValues = {
   drawingNumber?: string;
   unitOfMeasure?: string;
   cycleTimeMinutes?: number | null;
+  categoryName?: string;
   isActive: boolean;
 };
 
@@ -74,35 +78,54 @@ const schemas = {
     cycleTimeMinutes: z.number().finite().min(0, 'Cycle time cannot be negative'),
     isActive: z.boolean(),
   }),
+  'downtime-categories': z.object({
+    categoryName: z.string().trim().min(1, 'Enter a category name'),
+    isActive: z.boolean(),
+  }),
 };
 
 const details: Record<MasterKind, string> = {
   shifts: 'Define working hours and break allowances for the current company.',
   machines: 'Maintain the equipment available to the current company.',
   components: 'Maintain the part catalogue for the current company.',
+  'downtime-categories': 'Define the downtime categories available to production.',
 };
 const titles: Record<MasterKind, string> = {
   shifts: 'Shifts',
   machines: 'Machines',
   components: 'Components',
+  'downtime-categories': 'Downtime Categories',
+};
+
+const singularTitles: Record<MasterKind, string> = {
+  shifts: 'Shift',
+  machines: 'Machine',
+  components: 'Component',
+  'downtime-categories': 'Downtime Category',
 };
 
 function getDetail(kind: MasterKind, id: number, companyId: number): Promise<MasterRow> {
   if (kind === 'shifts') return shiftApi.getById(id, companyId);
   if (kind === 'machines') return machineApi.getById(id, companyId);
-  return componentApi.getById(id, companyId);
+  if (kind === 'components') return componentApi.getById(id, companyId);
+  return downtimeCategoryApi.getById(id, companyId);
 }
 
 function getList(kind: MasterKind, companyId: number): Promise<MasterRow[]> {
   if (kind === 'shifts') return shiftApi.getAll(companyId);
   if (kind === 'machines') return machineApi.getAll(companyId);
-  return componentApi.getAll(companyId);
+  if (kind === 'components') return componentApi.getAll(companyId);
+  return downtimeCategoryApi.getAll(companyId, false);
 }
 
-function toggleMaster(kind: Exclude<MasterKind, 'components'>, id: number, companyId: number) {
-  return kind === 'shifts'
-    ? shiftApi.toggleActive(id, companyId)
-    : machineApi.toggleActive(id, companyId);
+function toggleMaster(
+  kind: Exclude<MasterKind, 'components'>,
+  id: number,
+  companyId: number,
+) {
+  if (kind === 'shifts') return shiftApi.toggleActive(id, companyId);
+  if (kind === 'machines') return machineApi.toggleActive(id, companyId);
+  return downtimeCategoryApi.toggleActive(id, companyId);
 }
 
 function defaults(kind: MasterKind): MasterFormValues {
@@ -177,6 +200,17 @@ function MasterForm({
           isActive: values.isActive,
         } satisfies MachinesUpdateRequest;
         return machineApi.update(companyId, updatePayload);
+      }
+      if (kind === 'downtime-categories') {
+        const payload = {
+          categoryName: values.categoryName!,
+          isActive: values.isActive,
+        } satisfies DowntimeCategoriesCreateRequest;
+        if (editingId === null) return downtimeCategoryApi.create(companyId, payload);
+        return downtimeCategoryApi.update(companyId, {
+          ...payload,
+          id: editingId,
+        } satisfies DowntimeCategoriesUpdateRequest);
       }
       const createPayload = {
         componentCode: values.componentCode!,
@@ -264,6 +298,9 @@ function MasterForm({
           {field('unitOfMeasure', 'Unit of measure')}
           {field('cycleTimeMinutes', 'Cycle time (minutes)', 'number')}
         </>}
+        {kind === 'downtime-categories' && <>
+          {field('categoryName', 'Category name')}
+        </>}
       </div>
       <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
         <input type="checkbox" {...register('isActive')} /> Active
@@ -271,7 +308,7 @@ function MasterForm({
       {formError && <p role="alert" className="error-box">{formError}</p>}
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onDone} disabled={save.isPending}>Cancel</Button>
-        <Button type="submit" disabled={save.isPending}>{save.isPending ? 'Saving...' : editingId === null ? `Create ${kind.slice(0, -1)}` : 'Save changes'}</Button>
+        <Button type="submit" disabled={save.isPending}>{save.isPending ? 'Saving...' : editingId === null ? `Create ${singularTitles[kind]}` : 'Save changes'}</Button>
       </div>
     </form>
   );
@@ -280,7 +317,8 @@ function MasterForm({
 function rowName(kind: MasterKind, row: MasterRow) {
   if (kind === 'shifts') return (row as Shift).shiftName;
   if (kind === 'machines') return (row as Machine).machineName;
-  return (row as Component).componentName;
+  if (kind === 'components') return (row as Component).componentName;
+  return (row as DowntimeCategory).categoryName;
 }
 
 export function MasterPage({ kind }: { kind: MasterKind }) {
@@ -319,7 +357,7 @@ export function MasterPage({ kind }: { kind: MasterKind }) {
   return <>
     <div className="page-heading">
       <div><p className="eyebrow">MASTERS</p><h1>{titles[kind]}</h1><p>{details[kind]}</p></div>
-      <PermissionGate route={`/masters/${kind}`} permission="ADD"><Button onClick={openCreate}><Plus size={16} /> Add {kind.slice(0, -1)}</Button></PermissionGate>
+      <PermissionGate route={`/masters/${kind}`} permission="ADD"><Button onClick={openCreate}><Plus size={16} /> Add {singularTitles[kind]}</Button></PermissionGate>
     </div>
     <section className="panel">
       <div className="toolbar no-print">
@@ -337,9 +375,9 @@ export function MasterPage({ kind }: { kind: MasterKind }) {
           <td><StatusBadge value={row.isActive} /></td><td className="no-print"><div className="flex flex-wrap gap-2"><PermissionGate route={`/masters/${kind}`} permission="EDIT"><Button variant="outline" size="sm" onClick={() => openEdit(row)}><Pencil size={14} /> Edit</Button><Button variant="outline" size="sm" disabled={kind === 'components'} title={kind === 'components' ? 'Component status changes are not available yet.' : undefined} onClick={() => { if (kind !== 'components') setToggleTarget(row); }}><Power size={14} /> {row.isActive ? 'Deactivate' : 'Activate'}</Button></PermissionGate></div></td>
         </tr>)}</tbody></table></div>}
     </section>
-    <FormDialog open={formOpen} onOpenChange={(open) => !open && closeForm()} title={`${editingId === null ? 'Add' : 'Edit'} ${kind.slice(0, -1)}`} description={details[kind]}>
+    <FormDialog open={formOpen} onOpenChange={(open) => !open && closeForm()} title={`${editingId === null ? 'Add' : 'Edit'} ${singularTitles[kind]}`} description={details[kind]}>
       <MasterForm kind={kind} companyId={companyId} editingId={editingId} onDone={() => { setFormOpen(false); setEditingId(null); }} onBusyChange={setFormBusy} />
     </FormDialog>
-    <ConfirmDialog open={!!toggleTarget} title={toggleTarget ? `${toggleTarget.isActive ? 'Deactivate' : 'Activate'} ${rowName(kind, toggleTarget)}?` : 'Change record status?'} description="This changes the active status in your company's backend." busy={toggle.isPending} onCancel={() => setToggleTarget(null)} onConfirm={() => !toggle.isPending && toggle.mutate()} />
+    <ConfirmDialog open={!!toggleTarget} title={toggleTarget ? `${toggleTarget.isActive ? 'Deactivate' : 'Activate'} ${rowName(kind, toggleTarget)}?` : 'Change record status?'} description={toggleTarget ? `This will ${toggleTarget.isActive ? 'deactivate' : 'activate'} ${rowName(kind, toggleTarget)}${toggleTarget.isActive ? '. It will no longer be available for new use.' : ' and make it available for use.'}` : undefined} busy={toggle.isPending} onCancel={() => setToggleTarget(null)} onConfirm={() => !toggle.isPending && toggle.mutate()} />
   </>;
 }

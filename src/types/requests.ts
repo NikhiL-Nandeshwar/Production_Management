@@ -66,6 +66,9 @@ export interface DowntimeCategoriesCreateRequest {
   categoryName: string;
   isActive: boolean;
 }
+export interface DowntimeCategoriesUpdateRequest extends DowntimeCategoriesCreateRequest {
+  id: number;
+}
 
 export interface RejectionTypesCreateRequest {
   typeName: string;

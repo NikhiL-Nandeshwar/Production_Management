@@ -16,6 +16,7 @@ const routeAliases: Record<string, string> = {
   '/shifts': '/masters/shifts',
   '/machines': '/masters/machines',
   '/components': '/masters/components',
+  '/downtime/categories': '/masters/downtime-categories',
 };
 export function normalizeResourceRoute(route: string) {
   return routeAliases[route] || route;
