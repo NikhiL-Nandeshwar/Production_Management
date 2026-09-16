@@ -62,6 +62,7 @@ export interface User {
   username: string;
   email: string;
   displayName: string;
+  salaryPerHour: number | null;
   isActive: boolean;
 }
 export interface CompanyMenu {
@@ -132,6 +133,50 @@ export interface DowntimeCategory {
   categoryName: string;
   isActive: boolean;
   createdAt: string;
+}
+export interface WorkSessionDowntime {
+  id: number;
+  downtimeCategoryId: number;
+  categoryName: string;
+  durationMinutes: number;
+  remarks: string;
+}
+export interface WorkSession {
+  id: number;
+  companyId: number;
+  operatorUserId: number;
+  operatorName: string;
+  workDate: string;
+  shiftId: number;
+  shiftName: string;
+  machineId: number;
+  machineName: string;
+  componentId: number;
+  componentName: string;
+  cycleTimeMinutes: number | null;
+  inTime: string;
+  outTime: string | null;
+  normsMinutes: number;
+  shiftDurationMinutes: number;
+  availableProductionMinutes: number;
+  qtyOk: number;
+  reworkQty: number;
+  machiningRejectionQty: number;
+  castingRejectionQty: number;
+  totalQty: number;
+  machineBreakdownMinutes: number;
+  powerOffMinutes: number;
+  noLoadMinutes: number;
+  settingMinutes: number;
+  unloadingMinutes: number;
+  overtimeMinutes: number;
+  idealQty: number;
+  efficiencyPercentage: number;
+  actualWorkHours: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string | null;
+  downtimes: WorkSessionDowntime[];
 }
 export type ActionPermission =
   | 'VIEW'

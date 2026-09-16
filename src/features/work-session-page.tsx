@@ -1,16 +1,22 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/auth-store';
 import * as shiftApi from '@/lib/api/shifts';
 import * as machineApi from '@/lib/api/machines';
 import * as componentApi from '@/lib/api/components';
 import * as downtimeCategoryApi from '@/lib/api/downtime-categories';
+import * as workSessionApi from '@/lib/api/work-sessions';
+import type { WorkSession } from '@/types/api';
+import type {
+  WorkSessionsCreateRequest,
+  WorkSessionsUpdateRequest,
+} from '@/types/requests';
 import { errorText } from '@/lib/api/errors';
 import { Button } from '@/components/ui/button';
 import {
-  EmptyState,
   ErrorState,
   LoadingSkeleton,
 } from '@/components/common/states';
@@ -40,11 +46,50 @@ function displayNumber(value: number, suffix = '') {
   return Number.isFinite(value) ? `${value.toFixed(2).replace(/\.00$/, '')}${suffix}` : '—';
 }
 
+function toIso(workDate: string, time: string) {
+  return new Date(`${workDate}T${time}:00`).toISOString();
+}
+
+function displayDateTime(value: string | null) {
+  if (!value) return 'Not available';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+function timeInputValue(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? ''
+    : `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+function elapsedSeconds(value: string) {
+  const start = Date.parse(value);
+  return Number.isFinite(start) ? Math.max(0, Math.floor((Date.now() - start) / 1000)) : 0;
+}
+
+function formatElapsed(seconds: number) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+}
+
 type DowntimeState = { enabled: boolean; minutes: string };
+
+function restoredDowntimeState(value: WorkSession) {
+  return Object.fromEntries(
+    value.downtimes.map((item) => [
+      item.downtimeCategoryId,
+      { enabled: true, minutes: String(item.durationMinutes) },
+    ]),
+  );
+}
 
 export function WorkSessionPage() {
   const session = useAuthStore((state) => state.session);
   const companyId = session?.companyId;
+  const today = new Date().toISOString().slice(0, 10);
   const [workDate, setWorkDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [shiftId, setShiftId] = useState('');
   const [machineId, setMachineId] = useState('');
@@ -59,6 +104,11 @@ export function WorkSessionPage() {
   const [overtimeHours, setOvertimeHours] = useState('0');
   const [overtimeMinutes, setOvertimeMinutes] = useState('0');
   const [downtime, setDowntime] = useState<Record<number, DowntimeState>>({});
+  const [activeSession, setActiveSession] = useState<WorkSession | null>(null);
+  const [completedSession, setCompletedSession] = useState<WorkSession | null>(null);
+  const [sessionEnded, setSessionEnded] = useState(false);
+  const [sessionError, setSessionError] = useState('');
+  const [elapsed, setElapsed] = useState(0);
   const validCompanyId =
     !!session && typeof companyId === 'number' && companyId > 0;
   const shifts = useQuery({
@@ -81,13 +131,82 @@ export function WorkSessionPage() {
     queryFn: () => downtimeCategoryApi.getAll(companyId!, true),
     enabled: validCompanyId,
   });
+  const activeSessionQuery = useQuery({
+    queryKey: ['work-session-active', companyId, session?.userId],
+    queryFn: () => workSessionApi.getAll(companyId!, session!.userId),
+    enabled: validCompanyId && typeof session?.userId === 'number',
+  });
+  const completedSessionQuery = useQuery({
+    queryKey: ['work-session-completed', companyId, session?.userId, today],
+    queryFn: () => workSessionApi.getAll(companyId!, session!.userId, 'Completed', today),
+    enabled: validCompanyId && typeof session?.userId === 'number',
+  });
+  useEffect(() => {
+    const restored = activeSessionQuery.data?.find(
+      (value) =>
+        value.status === 'Open' &&
+        value.companyId === companyId &&
+        value.operatorUserId === session?.userId,
+    );
+    if (!restored) return;
+    const restore = window.setTimeout(() => {
+      // The verified example has status Open with a non-null outTime; confirm this inconsistency with the backend team.
+      setActiveSession(restored);
+      setSessionEnded(false);
+      setWorkDate(restored.workDate);
+      setShiftId(String(restored.shiftId));
+      setMachineId(String(restored.machineId));
+      setComponentId(String(restored.componentId));
+      setStartTime(timeInputValue(restored.inTime));
+      setEndTime(restored.outTime ? timeInputValue(restored.outTime) : '');
+      setNorms(String(restored.normsMinutes));
+      setQtyOk(String(restored.qtyOk));
+      setRework(String(restored.reworkQty));
+      setMachiningRejection(String(restored.machiningRejectionQty));
+      setCastingRejection(String(restored.castingRejectionQty));
+      setOvertimeHours(String(Math.floor(restored.overtimeMinutes / 60)));
+      setOvertimeMinutes(String(restored.overtimeMinutes % 60));
+      setDowntime(restoredDowntimeState(restored));
+    }, 0);
+    return () => window.clearTimeout(restore);
+  }, [activeSessionQuery.data, companyId, session?.userId]);
+  useEffect(() => {
+    if (completedSessionQuery.error) {
+      const clear = window.setTimeout(() => setCompletedSession(null), 0);
+      return () => window.clearTimeout(clear);
+    }
+    const latest = completedSessionQuery.data
+      ?.filter(
+        (value) =>
+          value.status === 'Completed' &&
+          value.companyId === companyId &&
+          value.operatorUserId === session?.userId,
+      )
+      .sort(
+        (left, right) =>
+          Date.parse(right.updatedAt || right.createdAt) -
+          Date.parse(left.updatedAt || left.createdAt),
+      )[0];
+    const restore = window.setTimeout(() => setCompletedSession(latest ?? null), 0);
+    return () => window.clearTimeout(restore);
+  }, [completedSessionQuery.data, completedSessionQuery.error, companyId, session?.userId]);
+  useEffect(() => {
+    if (!activeSession || sessionEnded) return;
+    const update = () => setElapsed(elapsedSeconds(activeSession.inTime));
+    update();
+    const timer = window.setInterval(update, 1000);
+    return () => window.clearInterval(timer);
+  }, [activeSession, sessionEnded]);
   const lookupError =
-    shifts.error || machines.error || components.error || downtimeCategories.error;
+    shifts.error ||
+    machines.error ||
+    components.error ||
+    downtimeCategories.error || activeSessionQuery.error;
   const lookupLoading =
     shifts.isPending ||
     machines.isPending ||
     components.isPending ||
-    downtimeCategories.isPending;
+    downtimeCategories.isPending || activeSessionQuery.isPending;
   const canStart = Boolean(workDate && shiftId && machineId && componentId && startTime);
   const selectedComponent = components.data?.find(
     (component) => String(component.id) === componentId,
@@ -98,15 +217,11 @@ export function WorkSessionPage() {
     ? timeDuration(selectedShift.startTime.slice(0, 5), selectedShift.endTime.slice(0, 5))
     : 0;
   const normsMinutes = nonNegative(norms);
-  const availableProductionTime = Math.max(0, shiftDuration - normsMinutes);
   const totalQty =
     nonNegative(qtyOk) +
     nonNegative(rework) +
     nonNegative(machiningRejection) +
     nonNegative(castingRejection);
-  const idealQty =
-    cycleTime !== null && cycleTime > 0 ? availableProductionTime / cycleTime : 0;
-  const efficiency = idealQty > 0 ? (totalQty / idealQty) * 100 : 0;
   const totalDowntimeMinutes = (downtimeCategories.data ?? []).reduce(
     (total, category) => {
       const value = downtime[category.id];
@@ -115,6 +230,13 @@ export function WorkSessionPage() {
     0,
   );
   const overtimeMinutesTotal = nonNegative(overtimeHours) * 60 + nonNegative(overtimeMinutes);
+  const availableProductionTime = Math.max(
+    0,
+    shiftDuration - normsMinutes - totalDowntimeMinutes + overtimeMinutesTotal,
+  );
+  const idealQty =
+    cycleTime !== null && cycleTime > 0 ? availableProductionTime / cycleTime : 0;
+  const efficiency = idealQty > 0 ? (totalQty / idealQty) * 100 : 0;
   const finalActualWorkHours =
     cycleTime !== null && cycleTime > 0
       ? (totalQty * cycleTime + totalDowntimeMinutes + overtimeMinutesTotal) / 60
@@ -124,6 +246,119 @@ export function WorkSessionPage() {
       ...current,
       [id]: { ...(current[id] ?? { enabled: false, minutes: '0' }), ...update },
     }));
+  const createSession = useMutation({
+    mutationFn: (payload: WorkSessionsCreateRequest) =>
+      workSessionApi.create(companyId!, payload),
+    onSuccess: (result) => {
+      toast.success(result.message || 'Work session started successfully.');
+      setActiveSession(result.data);
+      setCompletedSession(null);
+      setSessionEnded(false);
+      setSessionError('');
+      setDowntime(restoredDowntimeState(result.data));
+    },
+    onError: (error) => setSessionError(errorText(error)),
+  });
+  const completeSession = useMutation({
+    mutationFn: (id: number) => workSessionApi.complete(companyId!, id),
+    onSuccess: (result) => {
+      toast.success(result.message || 'Work session completed successfully.');
+      setCompletedSession(result.data);
+      setActiveSession(null);
+      setSessionEnded(true);
+      setSessionError('');
+      setEndTime('');
+      setWorkDate(new Date().toISOString().slice(0, 10));
+      setShiftId('');
+      setMachineId('');
+      setComponentId('');
+      setStartTime(currentTime());
+      setNorms('60');
+      setQtyOk('0');
+      setRework('0');
+      setMachiningRejection('0');
+      setCastingRejection('0');
+      setOvertimeHours('0');
+      setOvertimeMinutes('0');
+      setDowntime({});
+    },
+    onError: (error) => setSessionError(`Completion failed: ${errorText(error)}`),
+  });
+  const updateSession = useMutation({
+    mutationFn: (payload: WorkSessionsUpdateRequest) =>
+      workSessionApi.update(companyId!, payload),
+    onSuccess: (result) => {
+      setActiveSession(result.data);
+      setSessionEnded(false);
+      setSessionError('');
+      setDowntime(restoredDowntimeState(result.data));
+      completeSession.mutate(result.data.id);
+    },
+    onError: (error) => setSessionError(errorText(error)),
+  });
+  const startSession = () => {
+    if (!canStart || createSession.isPending || activeSession) return;
+    setSessionError('');
+    createSession.mutate({
+      operatorUserId: session!.userId,
+      workDate,
+      shiftId: Number(shiftId),
+      machineId: Number(machineId),
+      componentId: Number(componentId),
+      inTime: toIso(workDate, startTime),
+      normsMinutes,
+      remarks: '',
+    });
+  };
+  const endSession = () => {
+    if (!activeSession || sessionEnded || updateSession.isPending || completeSession.isPending) return;
+    const capturedOutTime = currentTime();
+    setEndTime(capturedOutTime);
+    setSessionError('');
+    updateSession.mutate({
+      id: activeSession.id,
+      operatorUserId: session!.userId,
+      workDate,
+      shiftId: Number(shiftId),
+      machineId: Number(machineId),
+      componentId: Number(componentId),
+      inTime: toIso(workDate, startTime),
+      outTime: toIso(workDate, capturedOutTime),
+      normsMinutes,
+      qtyOk: nonNegative(qtyOk),
+      reworkQty: nonNegative(rework),
+      machiningRejectionQty: nonNegative(machiningRejection),
+      castingRejectionQty: nonNegative(castingRejection),
+      machineBreakdownMinutes: 0,
+      powerOffMinutes: 0,
+      noLoadMinutes: 0,
+      settingMinutes: 0,
+      unloadingMinutes: 0,
+      overtimeMinutes: overtimeMinutesTotal,
+      remarks: '',
+      downtimes: (downtimeCategories.data ?? [])
+        .filter((category) => downtime[category.id]?.enabled)
+        .map((category) => ({
+          downtimeCategoryId: category.id,
+          durationMinutes: nonNegative(downtime[category.id]?.minutes || '0'),
+          remarks: '',
+        })),
+    });
+  };
+    const savedSummary = completedSession ?? activeSession;
+    const summaryShiftDuration = savedSummary?.shiftDurationMinutes ?? shiftDuration;
+    const summaryNorms = savedSummary?.normsMinutes ?? normsMinutes;
+    const summaryDowntime = savedSummary
+      ? savedSummary.downtimes.reduce((total, item) => total + item.durationMinutes, 0)
+      : totalDowntimeMinutes;
+    const summaryOvertime = savedSummary?.overtimeMinutes ?? overtimeMinutesTotal;
+    const summaryAvailable =
+      savedSummary?.availableProductionMinutes ?? availableProductionTime;
+    const summaryCycleTime = savedSummary ? savedSummary.cycleTimeMinutes : cycleTime;
+    const summaryTotalQty = savedSummary?.totalQty ?? totalQty;
+    const summaryIdealQty = savedSummary?.idealQty ?? idealQty;
+    const summaryEfficiency = savedSummary?.efficiencyPercentage ?? efficiency;
+    const summaryActualHours = savedSummary?.actualWorkHours ?? finalActualWorkHours;
 
   if (!validCompanyId)
     return (
@@ -166,6 +401,7 @@ export function WorkSessionPage() {
                 void machines.refetch();
                 void components.refetch();
                 void downtimeCategories.refetch();
+                void activeSessionQuery.refetch();
               }}
             />
           ) : (
@@ -225,25 +461,40 @@ export function WorkSessionPage() {
               </label>
             </div>
           )}
-          {!lookupLoading && !lookupError && (
+          {!lookupLoading && !lookupError && !activeSession && (
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Button type="button" disabled={!canStart} title="Starting a session is unavailable until the verified Work Session API contract is supplied.">
-                Start Session
+              <Button type="button" disabled={!canStart || createSession.isPending} onClick={startSession}>
+                {createSession.isPending ? 'Starting...' : 'Start Session'}
               </Button>
-              <p className="notice">Starting a session is unavailable until the verified Work Session API contract is connected.</p>
             </div>
           )}
+          {activeSession && !sessionEnded && (
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Button type="button" disabled={updateSession.isPending || completeSession.isPending} onClick={endSession}>
+                {updateSession.isPending || completeSession.isPending ? 'Ending...' : 'End Session'}
+              </Button>
+            </div>
+          )}
+          {sessionError && <p role="alert" className="error-box mt-4">{sessionError}</p>}
         </div>
+        {completedSessionQuery.error && (
+          <p role="alert" className="error-box mt-4">
+            Unable to load today&apos;s completed session: {errorText(completedSessionQuery.error)}
+          </p>
+        )}
         <div className="mt-6 border border-slate-200 p-4">
           <h3 className="font-semibold text-slate-900">Norms / Allowed Time</h3>
-          <p className="mt-1 text-sm text-slate-500">Available Production Time = Shift Duration - Norms.</p>
+          <p className="mt-1 text-sm text-slate-500">Available Production Time = Shift Duration - Norms - Total Downtime + Overtime.</p>
           <div className="mt-4 grid gap-5 sm:grid-cols-2">
             <label className="field">
               Norms / Allowed Time (minutes)
               <input type="number" min="0" step="any" value={norms} onChange={(event) => setNorms(event.target.value)} />
             </label>
-            <CalculatedField label="Shift Duration" value={displayNumber(shiftDuration, ' min')} />
-            <CalculatedField label="Available Production Time" value={displayNumber(availableProductionTime, ' min')} />
+            <CalculatedField label="Shift Duration" value={displayNumber(summaryShiftDuration, ' min')} />
+            <CalculatedField label="Norms" value={displayNumber(summaryNorms, ' min')} />
+            <CalculatedField label="Total Downtime" value={displayNumber(summaryDowntime, ' min')} />
+            <CalculatedField label="Overtime" value={displayNumber(summaryOvertime, ' min')} />
+            <CalculatedField label="Available Production Time" value={displayNumber(summaryAvailable, ' min')} />
           </div>
         </div>
         <div className="mt-6 border border-slate-200 p-4">
@@ -279,29 +530,35 @@ export function WorkSessionPage() {
             </label>
           </div>
         </div>
-        <div className="mt-6 border border-teal-100 bg-teal-50 p-4">
-          <p className="eyebrow">WORK SESSION SUMMARY</p>
+        {completedSession && <div className="mt-6 border border-teal-100 bg-teal-50 p-4">
+          <p className="eyebrow">LAST COMPLETED SESSION</p>
           <div className="mt-4 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            <CalculatedField label="Cycle Time" value={cycleTime == null ? 'Not available' : displayNumber(cycleTime, ' min')} />
-            <CalculatedField label="Ideal Qty" value={idealQty > 0 ? displayNumber(idealQty, ' Nos.') : '—'} />
-            <CalculatedField label="Total Qty" value={displayNumber(totalQty, ' Nos.')} />
-            <CalculatedField label="Efficiency" value={idealQty > 0 ? displayNumber(efficiency, '%') : '—'} />
-            <CalculatedField label="Actual Work Hours" value={displayNumber(finalActualWorkHours, ' hrs')} />
-            <CalculatedField label="Overtime" value={displayNumber(overtimeMinutesTotal / 60, ' hrs')} />
+            <CalculatedField label="Cycle Time" value={summaryCycleTime == null ? 'Not available' : displayNumber(summaryCycleTime, ' min')} />
+            <CalculatedField label="Ideal Qty" value={summaryIdealQty > 0 ? displayNumber(summaryIdealQty, ' Nos.') : '—'} />
+            <CalculatedField label="Total Qty" value={displayNumber(summaryTotalQty, ' Nos.')} />
+            <CalculatedField label="Efficiency" value={summaryIdealQty > 0 ? displayNumber(summaryEfficiency, '%') : '—'} />
+            <CalculatedField label="Actual Work Hours" value={displayNumber(summaryActualHours, ' hrs')} />
           </div>
-          <p className="mt-4 text-xs text-slate-500">These values are calculated locally for planning only and are not saved.</p>
-        </div>
+        </div>}
       </section>
-      <section className="panel mt-5 p-4">
+      {activeSession?.status === 'Open' && <section className="panel mt-5 p-4">
         <div className="mb-4">
           <p className="eyebrow">SESSION STATUS</p>
           <h2 className="text-xl font-semibold text-slate-900">Active Session</h2>
         </div>
-        <EmptyState
-          title="No active session"
-          description="An active session will appear here after the verified start-session workflow is connected."
-        />
-      </section>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <CalculatedField label="Operator" value={activeSession.operatorName} />
+            <CalculatedField label="Work Date" value={activeSession.workDate} />
+            <CalculatedField label="Shift" value={activeSession.shiftName} />
+            <CalculatedField label="Machine" value={activeSession.machineName} />
+            <CalculatedField label="Component" value={activeSession.componentName} />
+            <CalculatedField label="Cycle Time" value={activeSession.cycleTimeMinutes == null ? 'Not available' : `${activeSession.cycleTimeMinutes} minutes`} />
+            <CalculatedField label="In Time" value={displayDateTime(activeSession.inTime)} />
+            <CalculatedField label="Out Time" value={displayDateTime(activeSession.outTime)} />
+            <CalculatedField label="Status" value={activeSession.status} />
+            {!sessionEnded && <CalculatedField label="Elapsed" value={formatElapsed(elapsed)} />}
+        </div>
+      </section>}
     </>
   );
 }

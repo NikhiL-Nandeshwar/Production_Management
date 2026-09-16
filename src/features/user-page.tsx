@@ -35,6 +35,7 @@ const userSchema = z.object({
   username: z.string().trim().min(1, 'Enter a username'),
   email: z.string().trim().email('Enter a valid email address'),
   displayName: z.string().trim().min(1, 'Enter a display name'),
+  salaryPerHour: z.number().finite().min(0, 'Salary per hour cannot be negative'),
   password: z.string(),
   isActive: z.boolean(),
 });
@@ -75,6 +76,7 @@ function UserForm({
       username: '',
       email: '',
       displayName: '',
+      salaryPerHour: undefined,
       password: '',
       isActive: true,
     },
@@ -87,6 +89,7 @@ function UserForm({
         username: detail.data.username,
         email: detail.data.email,
         displayName: detail.data.displayName,
+        salaryPerHour: detail.data.salaryPerHour ?? undefined,
         password: '',
         isActive: detail.data.isActive,
       });
@@ -96,6 +99,7 @@ function UserForm({
         username: '',
         email: '',
         displayName: '',
+        salaryPerHour: undefined,
         password: '',
         isActive: true,
       });
@@ -111,6 +115,7 @@ function UserForm({
           username: values.username,
           email: values.email,
           displayName: values.displayName,
+          salaryPerHour: values.salaryPerHour,
           password: values.password,
           isActive: values.isActive,
         };
@@ -121,6 +126,7 @@ function UserForm({
         roleId: values.roleId,
         email: values.email,
         displayName: values.displayName,
+        salaryPerHour: values.salaryPerHour,
         isActive: values.isActive,
       };
       return updateUser(companyId, payload);
@@ -141,6 +147,8 @@ function UserForm({
           if (key === 'email') setError('email', { message: messages.join(' ') });
           if (key === 'displayname')
             setError('displayName', { message: messages.join(' ') });
+          if (key === 'salaryperhour')
+            setError('salaryPerHour', { message: messages.join(' ') });
           if (key === 'password') setError('password', { message: messages.join(' ') });
         }
     },
@@ -205,6 +213,20 @@ function UserForm({
           ))}
         </select>
         {errors.roleId && <span className="field-error">{errors.roleId.message}</span>}
+      </label>
+      <label className="field">
+        Salary Per Hour
+        <input
+          type="number"
+          min="0"
+          step="any"
+          placeholder="Enter hourly salary"
+          {...register('salaryPerHour', { valueAsNumber: true })}
+          aria-invalid={!!errors.salaryPerHour}
+        />
+        {errors.salaryPerHour && (
+          <span className="field-error">{errors.salaryPerHour.message}</span>
+        )}
       </label>
       {userId === null && (
         <label className="field">
@@ -329,6 +351,7 @@ export function UserPage() {
                   <th>Email</th>
                   <th>Display name</th>
                   <th>Role</th>
+                  <th>Salary Per Hour</th>
                   <th>Status</th>
                   <th className="no-print">Actions</th>
                 </tr>
@@ -340,6 +363,7 @@ export function UserPage() {
                     <td>{user.email}</td>
                     <td>{user.displayName}</td>
                     <td>{roleName(user.roleId)}</td>
+                    <td>{user.salaryPerHour == null ? 'Not set' : user.salaryPerHour}</td>
                     <td><StatusBadge value={user.isActive} /></td>
                     <td className="no-print">
                       <div className="flex flex-wrap gap-2">

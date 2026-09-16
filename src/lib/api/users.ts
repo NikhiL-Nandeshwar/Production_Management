@@ -14,6 +14,10 @@ function decodeUser(value: unknown): User {
     typeof user.username !== 'string' ||
     typeof user.email !== 'string' ||
     typeof user.displayName !== 'string' ||
+    (user.salaryPerHour !== null &&
+      (typeof user.salaryPerHour !== 'number' ||
+        !Number.isFinite(user.salaryPerHour) ||
+        user.salaryPerHour < 0)) ||
     typeof user.isActive !== 'boolean'
   )
     throw new ApiError('The user response is missing required fields.');

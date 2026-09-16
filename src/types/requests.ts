@@ -96,6 +96,7 @@ export interface UsersCreateRequest {
   username: string;
   email: string;
   displayName: string;
+  salaryPerHour: number;
   password: string;
   isActive: boolean;
 }
@@ -104,6 +105,7 @@ export interface UsersUpdateRequest {
   roleId: number;
   email: string;
   displayName: string;
+  salaryPerHour: number;
   isActive: boolean;
 }
 
@@ -120,14 +122,42 @@ export interface AttendanceCreateRequest {
 }
 
 export interface WorkSessionsCreateRequest {
+  operatorUserId: number;
   workDate: string;
   shiftId: number;
-  operatorId: number;
   machineId: number;
   componentId: number;
-  machineComponentId: number;
-  startTime: string;
-  remarks: string | null;
+  inTime: string;
+  normsMinutes: number;
+  remarks: string;
+}
+export interface WorkSessionDowntimeRequest {
+  downtimeCategoryId: number;
+  durationMinutes: number;
+  remarks: string;
+}
+export interface WorkSessionsUpdateRequest {
+  id: number;
+  operatorUserId: number;
+  workDate: string;
+  shiftId: number;
+  machineId: number;
+  componentId: number;
+  inTime: string;
+  outTime: string;
+  normsMinutes: number;
+  qtyOk: number;
+  reworkQty: number;
+  machiningRejectionQty: number;
+  castingRejectionQty: number;
+  machineBreakdownMinutes: number;
+  powerOffMinutes: number;
+  noLoadMinutes: number;
+  settingMinutes: number;
+  unloadingMinutes: number;
+  overtimeMinutes: number;
+  remarks: string;
+  downtimes: WorkSessionDowntimeRequest[];
 }
 
 export interface ProductionEntriesCreateRequest {
