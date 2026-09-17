@@ -4,6 +4,7 @@ import { MasterPage } from '@/features/master-page';
 import { WorkSessionPage } from '@/features/work-session-page';
 import { RolePage } from '@/features/role-page';
 import { UserPage } from '@/features/user-page';
+import { SalaryReportPage } from '@/features/salary-report-page';
 import { UnavailableState } from '@/components/common/states';
 export default async function ModulePage({
   params,
@@ -19,6 +20,7 @@ export default async function ModulePage({
     );
   if (resource.key === 'roles') return <RolePage />;
   if (resource.key === 'users') return <UserPage />;
+  if (resource.key === 'salary-records') return <SalaryReportPage />;
   if (resource.key === 'work-sessions') return <WorkSessionPage />;
   if (
     resource.key === 'shifts' ||

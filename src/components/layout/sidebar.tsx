@@ -10,7 +10,11 @@ import {
 import { useAuthStore } from '@/stores/auth-store';
 import { useUIStore } from '@/stores/ui-store';
 import { normalizeResourceRoute } from '@/config/resources';
-import { safeRoute, flattenMenus } from '@/hooks/use-permission';
+import {
+  canonicalFrontendRoute,
+  safeRoute,
+  flattenMenus,
+} from '@/hooks/use-permission';
 import { ApiIcon } from '@/components/icons/icon-resolver';
 import type { SidebarMenu } from '@/types/api';
 import { Button } from '@/components/ui/button';
@@ -25,12 +29,16 @@ function MenuItem({
 }) {
   const path = usePathname();
   const menuRoute = menu.route ? normalizeResourceRoute(menu.route) : null;
+  const route = safeRoute(menuRoute)
+    ? canonicalFrontendRoute(menuRoute)
+    : menuRoute;
   const superadmin = useAuthStore((s) => s.session?.isSuperAdmin);
   if (menu.route?.startsWith('/superadmin') && !superadmin) return null;
   const children = Array.isArray(menu.children) ? menu.children : [];
-  const active = path === menuRoute;
+  const active = path === route;
   const descendant = flattenMenus(children).some(
-    (m) => normalizeResourceRoute(m.route || '') === path,
+    (m) =>
+      canonicalFrontendRoute(normalizeResourceRoute(m.route || '')) === path,
   );
   const content = (
     <>
@@ -49,11 +57,11 @@ function MenuItem({
             {content}
             <ChevronDown size={14} className="ml-auto" />
           </summary>
-          {safeRoute(menuRoute) && (
+          {safeRoute(route) && (
             <Link
               onClick={onNavigate}
               className={`nav-item ${active ? 'active' : ''}`}
-              href={menuRoute}
+              href={route}
             >
               {menu.displayName}
             </Link>
@@ -73,13 +81,13 @@ function MenuItem({
               ))}
           </ul>
         </details>
-      ) : safeRoute(menuRoute) ? (
+      ) : safeRoute(route) ? (
         <Link
           title={menu.displayName}
           aria-current={active ? 'page' : undefined}
           onClick={onNavigate}
           className={`nav-item ${active ? 'active' : ''}`}
-          href={menuRoute}
+          href={route}
         >
           {content}
         </Link>

@@ -65,6 +65,35 @@ export interface User {
   salaryPerHour: number | null;
   isActive: boolean;
 }
+export interface SalaryRecord {
+  id: number;
+  companyId: number;
+  userId: number;
+  userName: string;
+  displayName: string;
+  fromDate: string;
+  toDate: string;
+  periodMonth: number;
+  periodYear: number;
+  salaryPerHourSnapshot: number;
+  totalWorkHours: number;
+  totalOtHours: number;
+  baseAmount: number;
+  overtimeAmount: number;
+  incentiveAmount: number;
+  deductionAmount: number;
+  finalAmount: number;
+  status: string;
+  approvedBy: unknown | null;
+  approvedAt: unknown | null;
+  createdAt: string;
+}
+export interface SalaryRecordPage {
+  items: SalaryRecord[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+}
 export interface CompanyMenu {
   id: number;
   menuId: number;

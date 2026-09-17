@@ -184,6 +184,29 @@ export interface SalaryRecordsCreateRequest {
   incentiveAmount: number;
   deductionAmount: number;
 }
+export interface SalaryRecordListParams {
+  FromDate?: string;
+  ToDate?: string;
+  UserId?: number;
+  Status?: 'Draft';
+  Page: number;
+  PageSize: number;
+  companyId: number;
+}
+export interface GenerateSingleSalaryRequest {
+  userId: number;
+  fromDate: string;
+  toDate: string;
+  incentiveAmount: number;
+  deductionAmount: number;
+}
+export interface GenerateBulkSalaryRequest {
+  userIds: number[];
+  fromDate: string;
+  toDate: string;
+  incentiveAmount: number;
+  deductionAmount: number;
+}
 export interface CompleteWorkSessionRequest {
   id: number;
   endTime: string;

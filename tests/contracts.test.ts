@@ -14,10 +14,50 @@ import {
 import { useAuthStore } from '../src/stores/auth-store';
 import { resources } from '../src/config/resources';
 import type { AuthSession } from '../src/types/api';
+import {
+  decodeSalaryRecord,
+  decodeSalaryRecordPage,
+} from '../src/lib/api/salary-records';
 
 test('unknown response wrappers are rejected instead of guessed', () => {
   assert.throws(() => decodeRows('shifts', { items: [] }));
   assert.deepEqual(decodeRows('shifts', []).rows, []);
+});
+test('salary report requires a paginated response and accepts draft approval nulls', () => {
+  const record = {
+    id: 4,
+    companyId: 2,
+    userId: 7,
+    userName: 'Ramesh',
+    displayName: 'Ramu',
+    fromDate: '2026-09-14',
+    toDate: '2026-09-16',
+    periodMonth: 9,
+    periodYear: 2026,
+    salaryPerHourSnapshot: 150,
+    totalWorkHours: 8.0833,
+    totalOtHours: 1,
+    baseAmount: 1212.5,
+    overtimeAmount: 0,
+    incentiveAmount: 0,
+    deductionAmount: 0,
+    finalAmount: 1212.5,
+    status: 'Draft',
+    approvedBy: null,
+    approvedAt: null,
+    createdAt: '2026-09-16T10:12:37.4235587',
+  };
+  assert.equal(decodeSalaryRecord(record).finalAmount, 1212.5);
+  assert.deepEqual(
+    decodeSalaryRecordPage({
+      items: [record],
+      pageNumber: 1,
+      pageSize: 20,
+      totalCount: 1,
+    }).items,
+    [record],
+  );
+  assert.throws(() => decodeSalaryRecordPage([record]));
 });
 test('Excel strips sensitive fields and neutralizes formula strings', () => {
   assert.deepEqual(

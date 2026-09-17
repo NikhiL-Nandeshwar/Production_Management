@@ -576,11 +576,11 @@ export const resources: ResourceConfig[] = [
   },
   {
     key: 'salary-records',
-    route: '/salary/records',
-    title: 'Salary records',
-    description: 'Generate payroll from attendance and salary rules.',
+    route: '/reports/salary',
+    title: 'Salary Report',
+    description: 'Review and generate salary records from verified backend data.',
     listUrl: null,
-    createUrl: '/SalaryRecords/Generate',
+    createUrl: null,
     fields: [
       {
         name: 'operatorId',
