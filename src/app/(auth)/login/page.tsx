@@ -9,10 +9,12 @@ import { toast } from 'sonner';
 import { login } from '@/lib/api/auth';
 import { errorText } from '@/lib/api/errors';
 import { Button } from '@/components/ui/button';
+
 const schema = z.object({
   username: z.string().trim().min(1, 'Enter your username'),
   password: z.string().min(1, 'Enter your password'),
 });
+
 export default function LoginPage() {
   const router = useRouter();
   const [show, setShow] = useState(false);
@@ -63,9 +65,9 @@ export default function LoginPage() {
           <div className="mb-10 inline-flex rounded-xl bg-teal-50 p-3 text-teal-800">
             <Factory size={26} />
           </div>
-          <span className="eyebrow">PRODUCTION WORKSPACE</span>
+          <span className="eyebrow px-2">PRODUCTION WORKSPACE</span>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-            Welcome back
+            Welcome to ProdVex
           </h2>
           <p className="mb-8 mt-3 text-sm text-slate-500">
             Sign in with your company account to continue.
@@ -129,11 +131,21 @@ export default function LoginPage() {
               <ArrowUpRight size={17} />
             </Button>
           </form>
-          <p className="mt-8 text-center text-xs leading-5 text-slate-400">
+          {/* <p className="mt-8 text-center text-xs leading-5 text-slate-400">
             Need access? Contact your company administrator.
-          </p>
+          </p> */}
         </div>
-        <footer>PRODVEX / MANUFACTURING INTELLIGENCE</footer>
+        <footer className=" text-slate-400">
+          Developed by{' '}
+          <a
+            href="https://nexspiretechnologies.in"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-slate-500 transition-colors hover:text-teal-700 hover:underline"
+          >
+            Nexspire Technologies
+          </a>
+        </footer>
       </section>
     </main>
   );

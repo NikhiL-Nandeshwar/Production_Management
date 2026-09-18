@@ -65,7 +65,7 @@ select:disabled {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: #475569;
 }
@@ -178,16 +178,17 @@ select:disabled {
 .login-form {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 72px 36px;
   background: white;
 }
+
 .login-form footer {
-  position: absolute;
-  bottom: 26px;
-  font-size: 9px;
-  letter-spacing: 1.5px;
+  margin-top: 32px;
+  font-size: 13px;
+  letter-spacing: normal;
   color: #94a3b8;
 }
 .sidebar {
@@ -253,7 +254,7 @@ select:disabled {
   padding: 10px 12px;
   margin: 3px 0;
   min-height: 38px;
-  font-size: 12px;
+  font-size: 13px;
   border-radius: 7px;
   color: #64717f;
   list-style: none;
@@ -404,7 +405,7 @@ select:disabled {
   border-radius: 12px;
 }
 .widget-card h3 {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   text-transform: capitalize;
 }
@@ -452,7 +453,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 13px;
   text-align: left;
 }
 th {
@@ -477,7 +478,7 @@ tbody tr:hover {
   gap: 12px;
   padding: 14px 20px;
   color: #94a3b8;
-  font-size: 11px;
+  font-size: 12px;
 }
 .badge {
   display: inline-flex;
